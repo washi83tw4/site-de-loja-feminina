@@ -1,0 +1,48 @@
+{
+  "entities": {
+    "products": {
+      "title": "Product",
+      "description": "A clothing item in the store's inventory",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The unique product ID" },
+        "name": { "type": "string", "description": "The name of the clothing item" },
+        "description": { "type": "string", "description": "A descriptive overview of the item" },
+        "price": { "type": "number", "description": "Price in BRL" },
+        "imageUrl": { "type": "string", "description": "URL to the product image" },
+        "category": { "type": "string", "description": "Product category, e.g., camisetas, calças, casacos, acessorios" },
+        "sizes": { "type": "array", "description": "List of available sizes, e.g., P, M, G, GG" },
+        "colors": { "type": "array", "description": "List of available colors/names" },
+        "featured": { "type": "boolean", "description": "Whether the product is highlighted on the home banner/sections" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp when added" }
+      },
+      "required": ["name", "price", "imageUrl", "category", "sizes", "createdAt"]
+    },
+    "orders": {
+      "title": "Order",
+      "description": "An order sent by a customer eventually finalized via WhatsApp",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The unique order ID" },
+        "userId": { "type": "string", "description": "Firebase Auth UID of the customer" },
+        "customerName": { "type": "string", "description": "Name of the customer" },
+        "customerPhone": { "type": "string", "description": "Contact phone or WhatsApp number" },
+        "items": { "type": "array", "description": "List of cart items" },
+        "total": { "type": "number", "description": "Total checkout value in BRL" },
+        "status": { "type": "string", "description": "Status of the order, e.g., pending, completed" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp of creation" }
+      },
+      "required": ["userId", "customerName", "items", "total", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "products/{productId}": {
+      "schema": "products",
+      "description": "Public catalog of products"
+    },
+    "orders/{orderId}": {
+      "schema": "orders",
+      "description": "Customer order records"
+    }
+  }
+}

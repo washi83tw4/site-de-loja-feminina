@@ -1,0 +1,6 @@
+{
+  "name": "E-Commerce de Roupas",
+  "description": "Loja virtual moderna e elegante de roupas com catálogo no Firebase e finalização de pedidos via WhatsApp.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
