@@ -340,9 +340,9 @@ export async function loginWithGoogle() {
 
   try {
     const { data, error } = await supabase!.auth.signInWithOAuth({
-      provider: 'google',
+      provider: "google",
       options: {
-        redirectTo: window.location.origin
+        redirectTo: "https://site-de-loja-feminina.vercel.app"
       }
     });
     if (error) throw error;
