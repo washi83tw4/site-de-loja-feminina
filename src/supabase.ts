@@ -272,13 +272,12 @@ export async function createOrder(order: Order): Promise<string> {
     const { data, error } = await supabase!
       .from('orders')
       .insert([{
-        userId: order.userId,
-        customerName: order.customerName,
-        customerPhone: order.customerPhone,
+        customer_name: order.customerName,
+        customer_email: order.customerEmail || '',
+        customer_phone: order.customerPhone || '',
         items: order.items,
         total: order.total,
-        status: order.status,
-        createdAt: new Date().toISOString()
+        status: order.status || 'novo'
       }])
       .select('id')
       .single();
@@ -294,7 +293,7 @@ export async function createOrder(order: Order): Promise<string> {
 /**
  * Fetch orders for authenticated user
  */
-export async function getOrdersForUser(userId: string): Promise<Order[]> {
+export async function getOrdersForUser(userId: string, email?: string): Promise<Order[]> {
   if (isDemoMode) {
     const localOrders = localStorage.getItem('clothes_orders');
     const list: Order[] = localOrders ? JSON.parse(localOrders) : [];
@@ -302,14 +301,28 @@ export async function getOrdersForUser(userId: string): Promise<Order[]> {
   }
 
   try {
-    const { data, error } = await supabase!
-      .from('orders')
-      .select('*')
-      .eq('userId', userId)
-      .order('createdAt', { ascending: false });
+    const query = supabase!.from('orders').select('*');
+    if (email) {
+      query.eq('customer_email', email);
+    } else {
+      return [];
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
 
     if (error) throw error;
-    return (data || []) as Order[];
+    
+    return (data || []).map((dbOrder: any) => ({
+      id: dbOrder.id,
+      userId: userId,
+      customerName: dbOrder.customer_name || '',
+      customerEmail: dbOrder.customer_email || '',
+      customerPhone: dbOrder.customer_phone || '',
+      items: typeof dbOrder.items === 'string' ? JSON.parse(dbOrder.items) : (dbOrder.items || []),
+      total: Number(dbOrder.total || 0),
+      status: dbOrder.status || 'novo',
+      createdAt: dbOrder.created_at || new Date().toISOString()
+    }));
   } catch (error) {
     return handleSupabaseError(error, OperationType.LIST, 'orders');
   }
@@ -340,9 +353,9 @@ export async function loginWithGoogle() {
 
   try {
     const { data, error } = await supabase!.auth.signInWithOAuth({
-      provider: "google",
+      provider: 'google',
       options: {
-        redirectTo: "https://site-de-loja-feminina.vercel.app"
+        redirectTo: window.location.origin
       }
     });
     if (error) throw error;

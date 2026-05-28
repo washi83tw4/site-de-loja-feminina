@@ -36,6 +36,7 @@ export interface Order {
   id?: string;
   userId: string;
   customerName: string;
+  customerEmail?: string;
   customerPhone?: string;
   items: {
     productId: string;
@@ -46,7 +47,7 @@ export interface Order {
     selectedColor?: string;
   }[];
   total: number;
-  status: 'pending' | 'completed';
+  status: 'pending' | 'completed' | string;
   createdAt: string;
 }
 

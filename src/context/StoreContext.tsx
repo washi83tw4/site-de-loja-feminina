@@ -84,7 +84,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const fetchUserOrders = async () => {
     if (!user) return;
     try {
-      const orders = await getOrdersForUser(user.uid || user.id);
+      const orders = await getOrdersForUser(user.uid || user.id, user.email || undefined);
       // Sort orders descending by date
       orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setUserOrders(orders);
@@ -187,6 +187,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const orderData: Order = {
         userId: user ? (user.uid || user.id) : 'anonymous',
         customerName: params.customerName,
+        customerEmail: user?.email || undefined,
         customerPhone: params.customerPhone,
         items: cart.map(item => ({
           productId: item.product.id,
