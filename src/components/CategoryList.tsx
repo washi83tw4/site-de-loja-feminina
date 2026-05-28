@@ -12,7 +12,7 @@ export const CategoryList: React.FC = () => {
 
   // Map icon strings to Lucide icon components representing premium fashion
   const renderIcon = (iconName: string) => {
-    const className = "w-[13px] h-[13px] sm:w-3.5 sm:h-3.5 group-hover:scale-110 transition-transform duration-200 shrink-0";
+    const className = "w-[11px] h-[11px] sm:w-[13px] sm:h-[13px] group-hover:scale-110 transition-transform duration-200 shrink-0";
     switch (iconName) {
       case 'ShoppingBag':
         return <ShoppingBag className={className} />;
@@ -62,23 +62,23 @@ export const CategoryList: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2 sm:gap-3 pb-4">
+      <div className="flex flex-wrap gap-2 sm:gap-2.5 pb-4">
         {categories.map((cat) => {
           const isActive = selectedCategory === cat.name;
           return (
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.name)}
-              className={`group flex items-center justify-center sm:justify-start gap-1.5 px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-full text-[11px] sm:text-xs font-bold sm:font-semibold tracking-wide whitespace-nowrap transition-all duration-200 cursor-pointer flex-1 xs:flex-initial min-w-[110px] xs:min-w-0 border active:scale-[0.98] ${
+              className={`group flex items-center justify-center gap-1.5 px-3.5 sm:px-4 py-1.5 sm:py-2.5 rounded-full text-[11px] sm:text-xs font-bold sm:font-semibold tracking-wide whitespace-nowrap transition-all duration-200 cursor-pointer flex-1 xs:flex-initial min-w-[100px] xs:min-w-0 border active:scale-[0.98] ${
                 isActive
                   ? 'bg-rose-600 text-white border-rose-600 shadow-sm'
-                  : 'bg-white hover:bg-rose-50/20 text-slate-550 hover:text-slate-800 border-slate-200/70 hover:border-rose-200/40'
+                  : 'bg-slate-50/60 hover:bg-slate-100/80 text-slate-550 hover:text-slate-800 border-slate-200/60 hover:border-slate-300'
               }`}
             >
-              <span className={`flex items-center justify-center ${isActive ? 'text-white' : 'text-rose-500 group-hover:text-rose-600'}`}>
+              <span className={`flex items-center justify-center transition-colors ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-600'}`}>
                 {renderIcon(cat.icon)}
               </span>
-              <span>{cat.label}</span>
+              <span className="leading-none">{cat.label}</span>
             </button>
           );
         })}
