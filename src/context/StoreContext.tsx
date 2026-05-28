@@ -24,7 +24,20 @@ interface StoreContextProps {
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
   checkoutLoading: boolean;
-  handleCheckout: (params: { customerName: string; customerPhone: string; comment?: string }) => Promise<void>;
+  handleCheckout: (params: {
+    customerName: string;
+    customerEmail: string;
+    customerPhone: string;
+    customerCpf?: string;
+    addressZipcode: string;
+    addressStreet: string;
+    addressNumber: string;
+    addressComplement?: string;
+    addressNeighborhood: string;
+    addressCity: string;
+    addressState: string;
+    notes?: string;
+  }) => Promise<string>;
   currentView: 'home' | 'product-detail' | 'orders';
   setCurrentView: (view: 'home' | 'product-detail' | 'orders') => void;
   selectedProductId: string | null;
@@ -178,8 +191,23 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const handleCheckout = async (params: { customerName: string; customerPhone: string; comment?: string }) => {
-    if (cart.length === 0) return;
+  const handleCheckout = async (params: {
+    customerName: string;
+    customerEmail: string;
+    customerPhone: string;
+    customerCpf?: string;
+    addressZipcode: string;
+    addressStreet: string;
+    addressNumber: string;
+    addressComplement?: string;
+    addressNeighborhood: string;
+    addressCity: string;
+    addressState: string;
+    notes?: string;
+  }): Promise<string> => {
+    if (cart.length === 0) {
+      throw new Error("Carrinho vazio");
+    }
     setCheckoutLoading(true);
     try {
       const subtotal = cart.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
@@ -187,58 +215,43 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const orderData: Order = {
         userId: user ? (user.uid || user.id) : 'anonymous',
         customerName: params.customerName,
-        customerEmail: user?.email || undefined,
+        customerEmail: params.customerEmail,
         customerPhone: params.customerPhone,
+        customerCpf: params.customerCpf,
+        addressZipcode: params.addressZipcode,
+        addressStreet: params.addressStreet,
+        addressNumber: params.addressNumber,
+        addressComplement: params.addressComplement,
+        addressNeighborhood: params.addressNeighborhood,
+        addressCity: params.addressCity,
+        addressState: params.addressState,
+        notes: params.notes,
         items: cart.map(item => ({
           productId: item.product.id,
           name: item.product.name,
           price: item.product.price,
           quantity: item.quantity,
           selectedSize: item.selectedSize,
-          selectedColor: item.selectedColor
+          selectedColor: item.selectedColor,
+          imageUrl: item.product.imageUrl,
+          subtotal: item.product.price * item.quantity
         })),
         total: subtotal,
-        status: 'completed',
+        status: 'novo',
         createdAt: new Date().toISOString()
       };
 
       // Add order to DB
-      await createOrder(orderData);
-      
-      // Build WhatsApp message
-      // Example number for shop: standard config +5511999999999 or prompt template
-      const formattedPhone = params.customerPhone.replace(/\D/g, '');
-      const shopWhatsAppNumber = "5511999999999"; // Visual placeholder number, customisable or can send directly
-      
-      let message = `*🛍️ NOVO PEDIDO - BOUTIQUE PREMIUM*\n\n`;
-      message += `*Cliente:* ${params.customerName}\n`;
-      message += `*WhatsApp:* ${params.customerPhone}\n`;
-      if (params.comment) {
-        message += `*Observação:* ${params.comment}\n`;
-      }
-      message += `\n*🛒 PRODUTOS:*\n`;
-      
-      cart.forEach((item, index) => {
-        message += `${index + 1}. *${item.product.name}*\n`;
-        message += `   Qtd: ${item.quantity}x | Tam: ${item.selectedSize}${item.selectedColor ? ` | Cor: ${item.selectedColor}` : ''}\n`;
-        message += `   Preço: R$ ${(item.product.price * item.quantity).toFixed(2)}\n`;
-      });
-      
-      message += `\n*💰 TOTAL:* R$ ${subtotal.toFixed(2)}\n\n`;
-      message += `Obrigado pela preferência! Aguardo instruções de pagamento.`;
-      
-      const encodedMsg = encodeURIComponent(message);
-      const whatsAppUrl = `https://api.whatsapp.com/send?phone=${shopWhatsAppNumber}&text=${encodedMsg}`;
+      const orderId = await createOrder(orderData);
       
       // Clear the local cart
       clearCart();
       fetchUserOrders(); // update local list
 
-      // Trigger redirect to WhatsApp in a safe manner
-      window.open(whatsAppUrl, '_blank');
+      return orderId;
     } catch (err) {
       console.error("Order completion failed:", err);
-      alert("Houve um problema ao finalizar o pedido no Supabase. Tente novamente.");
+      throw err;
     } finally {
       setCheckoutLoading(false);
     }

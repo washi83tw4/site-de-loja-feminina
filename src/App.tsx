@@ -148,14 +148,14 @@ function StoreShell() {
               <div className="space-y-3.5 text-xs text-slate-400 font-normal">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-rose-500" />
-                  <span>Checkout Privado WhatsApp</span>
+                  <span>Checkout Integrado Seguro</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CreditCard className="w-4 h-4 text-rose-500" />
                   <span>Pague via PIX ou Cartão</span>
                 </div>
                 <div className="text-[10px] text-slate-500 leading-relaxed">
-                  Para pagamentos, emitimos links ou chaves seguras homologadas durante nossa conversa no chat do WhatsApp.
+                  Os dados do seu pedido e endereço de entrega são salvos diretamente em nosso serviço de banco de dados Supabase.
                 </div>
               </div>
             </div>

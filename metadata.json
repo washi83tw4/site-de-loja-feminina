@@ -1,6 +1,6 @@
 {
   "name": "E-Commerce de Roupas",
-  "description": "Loja virtual moderna e elegante de roupas com catálogo no Firebase e finalização de pedidos via WhatsApp.",
+  "description": "Loja virtual de roupas moderna e elegante com catálogo e checkout seguro integrados ao Supabase.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

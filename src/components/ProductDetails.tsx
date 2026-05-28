@@ -239,8 +239,8 @@ export const ProductDetails: React.FC = () => {
             <div className="flex gap-3 items-start text-left">
               <ShieldCheck className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
               <div>
-                <p className="text-xs font-bold text-slate-800">Checkout Seguro via WhatsApp</p>
-                <p className="text-xs text-slate-500">Converse direto com nossa equipe para dúvidas e pagamentos.</p>
+                <p className="text-xs font-bold text-slate-800">Checkout Seguro e Rápido</p>
+                <p className="text-xs text-slate-500">Seu pedido é gravado no sistema instantaneamente com criptografia.</p>
               </div>
             </div>
           </div>

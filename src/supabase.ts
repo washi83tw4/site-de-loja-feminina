@@ -274,7 +274,16 @@ export async function createOrder(order: Order): Promise<string> {
       .insert([{
         customer_name: order.customerName,
         customer_email: order.customerEmail || '',
-        customer_phone: order.customerPhone || '',
+        customer_phone: order.customerPhone,
+        customer_cpf: order.customerCpf || '',
+        address_zipcode: order.addressZipcode,
+        address_street: order.addressStreet,
+        address_number: order.addressNumber,
+        address_complement: order.addressComplement || '',
+        address_neighborhood: order.addressNeighborhood,
+        address_city: order.addressCity,
+        address_state: order.addressState,
+        notes: order.notes || '',
         items: order.items,
         total: order.total,
         status: order.status || 'novo'
@@ -297,7 +306,7 @@ export async function getOrdersForUser(userId: string, email?: string): Promise<
   if (isDemoMode) {
     const localOrders = localStorage.getItem('clothes_orders');
     const list: Order[] = localOrders ? JSON.parse(localOrders) : [];
-    return list.filter(o => o.userId === userId);
+    return list.filter(o => o.userId === userId || o.customerEmail === email);
   }
 
   try {
@@ -318,6 +327,15 @@ export async function getOrdersForUser(userId: string, email?: string): Promise<
       customerName: dbOrder.customer_name || '',
       customerEmail: dbOrder.customer_email || '',
       customerPhone: dbOrder.customer_phone || '',
+      customerCpf: dbOrder.customer_cpf || '',
+      addressZipcode: dbOrder.address_zipcode || '',
+      addressStreet: dbOrder.address_street || '',
+      addressNumber: dbOrder.address_number || '',
+      addressComplement: dbOrder.address_complement || '',
+      addressNeighborhood: dbOrder.address_neighborhood || '',
+      addressCity: dbOrder.address_city || '',
+      addressState: dbOrder.address_state || '',
+      notes: dbOrder.notes || '',
       items: typeof dbOrder.items === 'string' ? JSON.parse(dbOrder.items) : (dbOrder.items || []),
       total: Number(dbOrder.total || 0),
       status: dbOrder.status || 'novo',

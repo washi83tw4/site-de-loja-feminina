@@ -38,6 +38,15 @@ export interface Order {
   customerName: string;
   customerEmail?: string;
   customerPhone?: string;
+  customerCpf?: string;
+  addressZipcode: string;
+  addressStreet: string;
+  addressNumber: string;
+  addressComplement?: string;
+  addressNeighborhood: string;
+  addressCity: string;
+  addressState: string;
+  notes?: string;
   items: {
     productId: string;
     name: string;
@@ -45,9 +54,11 @@ export interface Order {
     quantity: number;
     selectedSize: string;
     selectedColor?: string;
+    imageUrl?: string;
+    subtotal?: number;
   }[];
   total: number;
-  status: 'pending' | 'completed' | string;
+  status: string;
   createdAt: string;
 }
 

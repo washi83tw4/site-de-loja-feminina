@@ -153,8 +153,8 @@ export const Banner: React.FC = () => {
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="font-sans font-bold text-slate-800 text-[11px] sm:text-xs">CHECKOUT WHATSAPP</h4>
-              <p className="text-[10px] text-slate-450 mt-1 leading-normal">Finalize seu pedido e envie direto para atendimento humanizado</p>
+              <h4 className="font-sans font-bold text-slate-800 text-[11px] sm:text-xs">CHECKOUT 100% SEGURO</h4>
+              <p className="text-[10px] text-slate-450 mt-1 leading-normal">Seus dados e pedidos são gravados com segurança em tempo real</p>
             </div>
           </div>
 

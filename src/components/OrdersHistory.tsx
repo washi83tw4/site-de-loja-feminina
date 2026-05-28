@@ -66,7 +66,7 @@ export const OrdersHistory: React.FC = () => {
           Meus Pedidos <span className="text-rose-600">Enviados</span>
         </h1>
         <p className="text-sm text-slate-500 mt-1">
-          Histórico completo de compras finalizadas e enviadas por WhatsApp na conta <span className="font-semibold text-slate-700">{user.email}</span>.
+          Histórico completo de compras finalizadas na conta <span className="font-semibold text-slate-700">{user.email}</span>.
         </p>
       </div>
 
@@ -149,8 +149,8 @@ export const OrdersHistory: React.FC = () => {
               {/* Order total footer */}
               <div className="border-t border-slate-100 pt-4 flex justify-between items-center bg-slate-50/50 -mx-6 -mb-6 p-6 rounded-b-xl">
                 <div>
-                  <span className="font-sans font-medium text-xs text-slate-500 block">Forma de Finalização</span>
-                  <span className="font-sans font-bold text-xs text-green-700 block mt-0.5">WhatsApp / Direct</span>
+                  <span className="font-sans font-medium text-xs text-slate-500 block">Status do Pedido</span>
+                  <span className="font-sans font-bold text-xs text-rose-600 block mt-0.5 capitalize">{order.status || 'Novo'}</span>
                 </div>
 
                 <div>
