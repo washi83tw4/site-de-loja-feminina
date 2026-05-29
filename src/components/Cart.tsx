@@ -208,7 +208,7 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
       // Call backend to create Mercado Pago preference
       setIsCreatingPreference(true);
       try {
-        const mpResponse = await fetch('/api/mercado-pago/create-preference', {
+        const mpResponse = await fetch('/api/create-preference', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'

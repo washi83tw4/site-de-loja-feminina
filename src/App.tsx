@@ -30,14 +30,27 @@ function StoreShell() {
   const [paymentOrderId, setPaymentOrderId] = useState<string | null>(null);
 
   React.useEffect(() => {
+    const pathname = window.location.pathname;
     const params = new URLSearchParams(window.location.search);
     const payment = params.get('payment');
-    const orderId = params.get('orderId');
-    if (payment === 'success' || payment === 'failure' || payment === 'pending') {
+    const orderId = params.get('orderId') || params.get('external_reference');
+
+    if (pathname.includes('/pagamento/sucesso') || payment === 'success') {
+      setPaymentStatus('success');
+      setPaymentOrderId(orderId);
+      window.history.replaceState({}, document.title, '/');
+    } else if (pathname.includes('/pagamento/erro') || payment === 'failure') {
+      setPaymentStatus('failure');
+      setPaymentOrderId(orderId);
+      window.history.replaceState({}, document.title, '/');
+    } else if (pathname.includes('/pagamento/pendent') || payment === 'pending') {
+      setPaymentStatus('pending');
+      setPaymentOrderId(orderId);
+      window.history.replaceState({}, document.title, '/');
+    } else if (payment === 'success' || payment === 'failure' || payment === 'pending') {
       setPaymentStatus(payment as any);
       setPaymentOrderId(orderId);
-      // Clean query parameters so they don't persist on refresh
-      window.history.replaceState({}, document.title, window.location.pathname);
+      window.history.replaceState({}, document.title, '/');
     }
   }, []);
 

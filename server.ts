@@ -12,7 +12,7 @@ async function startServer() {
   app.use(express.json());
 
   // API Route - Mercado Pago preference creation
-  app.post("/api/mercado-pago/create-preference", async (req, res) => {
+  app.post("/api/create-preference", async (req, res) => {
     try {
       const { items, payer, external_reference } = req.body;
 
@@ -20,13 +20,9 @@ async function startServer() {
         return res.status(400).json({ error: "Missing items array" });
       }
 
-      // Automatically construct redirect URLs based on host
-      const host = req.get("host") || "localhost:3000";
-      const protocol = req.secure || req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
-      const appBaseUrl = `${protocol}://${host}`;
+      const BACKEND_MERCADOPAGO_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN || process.env.MERCADO_PAGO_ACCESS_TOKEN || "APP_USR-8998561393081066-052822-18438df5268019cb403d9aa53c2d96b1-354409374";
 
       const mpItems = items.map((item: any) => {
-        // Calculate appropriate unit price
         const price = Number(item.price || item.unit_price || 0);
         return {
           id: String(item.productId || item.id || ""),
@@ -75,20 +71,20 @@ async function startServer() {
         items: mpItems,
         payer: Object.keys(mpPayer).length > 0 ? mpPayer : undefined,
         back_urls: {
-          success: `${appBaseUrl}/?payment=success&orderId=${external_reference}`,
-          failure: `${appBaseUrl}/?payment=failure&orderId=${external_reference}`,
-          pending: `${appBaseUrl}/?payment=pending&external_reference`,
+          success: "https://site-de-loja-feminina.vercel.app/pagamento/sucesso",
+          failure: "https://site-de-loja-feminina.vercel.app/pagamento/erro",
+          pending: "https://site-de-loja-feminina.vercel.app/pagamento/pendent",
         },
         auto_return: "all",
         external_reference: String(external_reference || ""),
-        statement_descriptor: "BOUTIQUE ATTIRE",
+        statement_descriptor: "BOUTIQUE",
       };
 
       const response = await fetch("https://api.mercadopago.com/checkout/preferences", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${MP_ACCESS_TOKEN}`,
+          Authorization: `Bearer ${BACKEND_MERCADOPAGO_TOKEN}`,
         },
         body: JSON.stringify(payload),
       });
@@ -110,6 +106,103 @@ async function startServer() {
       });
     } catch (e: any) {
       console.error("Endpoint error creating MP preference:", e);
+      return res.status(500).json({ error: "Internal Server Error", message: e.message });
+    }
+  });
+
+  // Keep old path for local backward compatibility if needed
+  app.post("/api/mercado-pago/create-preference", async (req, res) => {
+    try {
+      const { items, payer, external_reference } = req.body;
+
+      if (!items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ error: "Missing items array" });
+      }
+
+      const BACKEND_MERCADOPAGO_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN || process.env.MERCADO_PAGO_ACCESS_TOKEN || "APP_USR-8998561393081066-052822-18438df5268019cb403d9aa53c2d96b1-354409374";
+
+      const mpItems = items.map((item: any) => {
+        const price = Number(item.price || item.unit_price || 0);
+        return {
+          id: String(item.productId || item.id || ""),
+          title: String(item.name || item.title || "Produto"),
+          quantity: Number(item.quantity || 1),
+          unit_price: price,
+          currency_id: "BRL",
+          picture_url: item.imageUrl || item.picture_url || undefined,
+        };
+      });
+
+      const mpPayer: any = {};
+      if (payer) {
+        mpPayer.email = payer.email;
+        if (payer.name) {
+          const parts = payer.name.trim().split(/\s+/);
+          mpPayer.name = parts[0] || "Cliente";
+          mpPayer.surname = parts.slice(1).join(" ") || "Boutique";
+        }
+        if (payer.phone) {
+          const cleanPhone = String(payer.phone).replace(/\D/g, "");
+          if (cleanPhone.length >= 10) {
+            mpPayer.phone = {
+              area_code: cleanPhone.slice(0, 2),
+              number: cleanPhone.slice(2),
+            };
+          } else {
+            mpPayer.phone = {
+              area_code: "11",
+              number: cleanPhone || "999999999",
+            };
+          }
+        }
+        if (payer.cpf) {
+          const cleanCpf = String(payer.cpf).replace(/\D/g, "");
+          if (cleanCpf) {
+            mpPayer.identification = {
+              type: "CPF",
+              number: cleanCpf,
+            };
+          }
+        }
+      }
+
+      const payload = {
+        items: mpItems,
+        payer: Object.keys(mpPayer).length > 0 ? mpPayer : undefined,
+        back_urls: {
+          success: "https://site-de-loja-feminina.vercel.app/pagamento/sucesso",
+          failure: "https://site-de-loja-feminina.vercel.app/pagamento/erro",
+          pending: "https://site-de-loja-feminina.vercel.app/pagamento/pendent",
+        },
+        auto_return: "all",
+        external_reference: String(external_reference || ""),
+        statement_descriptor: "BOUTIQUE",
+      };
+
+      const response = await fetch("https://api.mercadopago.com/checkout/preferences", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${BACKEND_MERCADOPAGO_TOKEN}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        return res.status(response.status).json({
+          error: "Failed to create Mercado Pago preference",
+          details: errorText,
+        });
+      }
+
+      const data = await response.json();
+      return res.json({
+        id: data.id,
+        init_point: data.init_point,
+        sandbox_init_point: data.sandbox_init_point,
+      });
+    } catch (e: any) {
       return res.status(500).json({ error: "Internal Server Error", message: e.message });
     }
   });
