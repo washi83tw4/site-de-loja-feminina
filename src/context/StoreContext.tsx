@@ -62,11 +62,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Categories config
   const categories: Category[] = [
-    { id: 'all', name: 'all', label: 'Tudo para você', icon: 'ShoppingBag' },
-    { id: 'camisetas', name: 'camisetas', label: 'Blusas e Camisetas', icon: 'Shirt' },
-    { id: 'calcas', name: 'calcas', label: 'Calças e Shorts', icon: 'Tag' },
-    { id: 'casacos', name: 'casacos', label: 'Vestidos e Casacos', icon: 'Sparkles' },
-    { id: 'acessorios', name: 'acessorios', label: 'Bolsas e Acessórios', icon: 'BriefcaseBusiness' }
+    { id: 'all', name: 'all', label: 'Tudo', icon: 'ShoppingBag' },
+    { id: 'camisetas', name: 'Camisetas', label: 'Camisetas', icon: 'Shirt' },
+    { id: 'blusas', name: 'Blusas', label: 'Blusas', icon: 'Sparkles' },
+    { id: 'calcas', name: 'Calças', label: 'Calças', icon: 'Layers' },
+    { id: 'shorts', name: 'Shorts', label: 'Shorts', icon: 'Scissors' },
+    { id: 'vestidos', name: 'Vestidos', label: 'Vestidos', icon: 'Sparkles' },
+    { id: 'casacos', name: 'Casacos', label: 'Casacos', icon: 'Wind' },
+    { id: 'saias', name: 'Saias', label: 'Saias', icon: 'Sparkles' },
+    { id: 'bolsas', name: 'Bolsas', label: 'Bolsas', icon: 'Briefcase' },
+    { id: 'acessorios', name: 'Acessórios', label: 'Acessórios', icon: 'Gem' },
+    { id: 'sapatos', name: 'Sapatos', label: 'Sapatos', icon: 'Footprints' },
+    { id: 'promocoes', name: 'promocoes', label: 'Promoções', icon: 'Percent' }
   ];
 
   // Load products
@@ -210,7 +217,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
     setCheckoutLoading(true);
     try {
-      const subtotal = cart.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
+      const subtotal = cart.reduce((acc, item) => {
+        const itemPrice = (item.product.onSale && item.product.promotionalPrice !== undefined) ? item.product.promotionalPrice : item.product.price;
+        return acc + itemPrice * item.quantity;
+      }, 0);
       
       const orderData: Order = {
         userId: user ? (user.uid || user.id) : 'anonymous',
@@ -226,16 +236,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         addressCity: params.addressCity,
         addressState: params.addressState,
         notes: params.notes,
-        items: cart.map(item => ({
-          productId: item.product.id,
-          name: item.product.name,
-          price: item.product.price,
-          quantity: item.quantity,
-          selectedSize: item.selectedSize,
-          selectedColor: item.selectedColor,
-          imageUrl: item.product.imageUrl,
-          subtotal: item.product.price * item.quantity
-        })),
+        items: cart.map(item => {
+          const itemPrice = (item.product.onSale && item.product.promotionalPrice !== undefined) ? item.product.promotionalPrice : item.product.price;
+          return {
+            productId: item.product.id,
+            name: item.product.name,
+            price: itemPrice,
+            quantity: item.quantity,
+            selectedSize: item.selectedSize,
+            selectedColor: item.selectedColor,
+            imageUrl: item.product.imageUrl,
+            subtotal: itemPrice * item.quantity
+          };
+        }),
         total: subtotal,
         status: 'novo',
         createdAt: new Date().toISOString()

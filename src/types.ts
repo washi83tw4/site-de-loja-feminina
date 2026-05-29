@@ -8,11 +8,15 @@ export interface Product {
   name: string;
   description: string;
   price: number;
+  promotionalPrice?: number;
+  onSale?: boolean;
+  featured?: boolean;
+  banner?: boolean;
+  active?: boolean;
   imageUrl: string;
   category: string;
   sizes: string[];
   colors?: string[];
-  featured?: boolean;
   stock?: number;
   createdAt?: string;
 }

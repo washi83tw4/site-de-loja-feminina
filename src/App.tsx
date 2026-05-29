@@ -29,7 +29,28 @@ function StoreShell() {
 
   // Filter products by selected category and active search queries
   const filteredProducts = products.filter(product => {
-    const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
+    // Only display active products (ativo = true)
+    if (product.active === false) return false;
+
+    let matchesCategory = false;
+    if (selectedCategory === 'all') {
+      matchesCategory = true;
+    } else if (selectedCategory === 'promocoes') {
+      matchesCategory = product.onSale === true;
+    } else {
+      // Robust normalized case-insensitive & accent-insensitive comparison
+      const normalize = (str: string) => {
+        return (str || '')
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLowerCase()
+          .trim();
+      };
+      const prodCatClean = normalize(product.category);
+      const selCatClean = normalize(selectedCategory);
+      matchesCategory = prodCatClean === selCatClean || (product.category || '').toLowerCase() === selectedCategory.toLowerCase();
+    }
+
     const matchesSearch = !searchQuery || 
       product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       product.description.toLowerCase().includes(searchQuery.toLowerCase());
@@ -51,6 +72,9 @@ function StoreShell() {
           <div>
             {/* Beautiful Promo Banner */}
             <Banner />
+
+            {/* Destaques da Loja Section */}
+            <FeaturedProducts />
 
             {/* Category Navigation */}
             <CategoryList />
@@ -135,10 +159,10 @@ function StoreShell() {
             <div className="space-y-3">
               <h4 className="text-xs font-mono text-rose-400 font-bold uppercase tracking-widest">Nossas Categorias</h4>
               <ul className="space-y-2 text-xs text-slate-400 font-normal">
-                <li><button onClick={() => { setSelectedCategory('camisetas'); window.scrollTo({top: 400, behavior: 'smooth'}); }} className="hover:text-rose-400 transition cursor-pointer">Blusas e Camisetas</button></li>
-                <li><button onClick={() => { setSelectedCategory('calcas'); window.scrollTo({top: 400, behavior: 'smooth'}); }} className="hover:text-rose-400 transition cursor-pointer">Calças e Shorts</button></li>
-                <li><button onClick={() => { setSelectedCategory('casacos'); window.scrollTo({top: 400, behavior: 'smooth'}); }} className="hover:text-rose-400 transition cursor-pointer">Vestidos e Casacos</button></li>
-                <li><button onClick={() => { setSelectedCategory('acessorios'); window.scrollTo({top: 400, behavior: 'smooth'}); }} className="hover:text-rose-400 transition cursor-pointer">Bolsas e Acessórios</button></li>
+                <li><button onClick={() => { setSelectedCategory('Camisetas'); window.scrollTo({top: 400, behavior: 'smooth'}); }} className="hover:text-rose-400 transition cursor-pointer">Camisetas</button></li>
+                <li><button onClick={() => { setSelectedCategory('Blusas'); window.scrollTo({top: 400, behavior: 'smooth'}); }} className="hover:text-rose-400 transition cursor-pointer">Blusas</button></li>
+                <li><button onClick={() => { setSelectedCategory('Calças'); window.scrollTo({top: 400, behavior: 'smooth'}); }} className="hover:text-rose-400 transition cursor-pointer">Calças</button></li>
+                <li><button onClick={() => { setSelectedCategory('promocoes'); window.scrollTo({top: 400, behavior: 'smooth'}); }} className="hover:text-rose-400 transition cursor-pointer">Promoções</button></li>
               </ul>
             </div>
 
@@ -192,6 +216,37 @@ function StoreShell() {
         </div>
       </footer>
 
+    </div>
+  );
+}
+
+function FeaturedProducts() {
+  const { products, isLoadingProducts } = useStore();
+  
+  // Filter where destaque = true and ativo = true
+  const featured = products.filter(p => p.featured === true && p.active !== false);
+
+  if (isLoadingProducts || featured.length === 0) return null;
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 mb-4 border-b border-rose-100/30">
+      <div className="flex items-center gap-2 mb-6 text-left">
+        <div className="p-1 px-2.5 bg-rose-50 text-rose-600 rounded-md font-mono text-[9px] font-extrabold uppercase tracking-widest flex items-center gap-1.5">
+          <Sparkles className="w-3 h-3 text-rose-500 animate-pulse" />
+          Destaques
+        </div>
+        <h3 className="font-sans font-black text-lg sm:text-xl text-slate-900 tracking-tight">
+          Destaques da loja
+        </h3>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 sm:gap-8 text-left">
+        {featured.map((product) => (
+          <div key={`featured-${product.id}`} className="animate-fade-in">
+            <ProductCard product={product} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

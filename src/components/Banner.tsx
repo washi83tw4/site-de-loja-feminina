@@ -3,10 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sparkles, ArrowRight, ShieldCheck, CreditCard, Truck, RefreshCw } from 'lucide-react';
+import { useStore } from '../context/StoreContext';
+import { motion, AnimatePresence } from 'motion/react';
 
 export const Banner: React.FC = () => {
+  const { products, setSelectedProductId, setCurrentView } = useStore();
+
   const handleScrollToCatalog = () => {
     const catalogEl = document.getElementById('catalogo');
     if (catalogEl) {
@@ -14,101 +18,263 @@ export const Banner: React.FC = () => {
     }
   };
 
+  // Filter products where active = true (active !== false) AND (banner = true OR onSale = true)
+  const carouselProducts = products.filter(
+    p => p.active !== false && (p.banner === true || p.onSale === true)
+  );
+
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    if (carouselProducts.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentIndex((prevIndex) => (prevIndex + 1) % carouselProducts.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [carouselProducts.length]);
+
+  const handleGoToProduct = (prodId: string) => {
+    setSelectedProductId(prodId);
+    setCurrentView('product-detail');
+  };
+
+  const getCategoryLabel = (cat: string) => {
+    if (!cat) return 'Geral';
+    const normalize = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    const cleanCat = normalize(cat);
+    switch (cleanCat) {
+      case 'camisetas': return 'Camisetas';
+      case 'blusas': return 'Blusas';
+      case 'calcas': return 'Calças';
+      case 'shorts': return 'Shorts';
+      case 'vestidos': return 'Vestidos';
+      case 'casacos': return 'Casacos';
+      case 'saias': return 'Saias';
+      case 'bolsas': return 'Bolsas';
+      case 'acessorios': return 'Acessórios';
+      case 'sapatos': return 'Sapatos';
+      default: return cat;
+    }
+  };
+
+  // Gradients matching the specified list:
+  // - rosa escuro com roxo
+  // - preto com rosa
+  // - vinho com azul escuro
+  // - roxo com pink
+  const themeGradients = [
+    "from-pink-900 via-rose-950 to-purple-950", // rosa escuro com roxo
+    "from-neutral-950 via-rose-950 to-neutral-900", // preto com rosa
+    "from-red-950 via-rose-900 to-slate-950", // vinho com azul escuro
+    "from-purple-950 via-fuchsia-950 to-pink-900" // roxo com pink
+  ];
+
+  const currentGradient = themeGradients[currentIndex % themeGradients.length];
+
   return (
     <div className="w-full">
-      {/* Immersive Barbie-themed Banner - Full Bleed and Slimmer design */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-pink-500 via-rose-400 to-pink-600 w-full mb-8 shadow-md">
-        
-        {/* Glamorous background decoration elements */}
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full bg-white/10 blur-3xl -translate-x-10 -translate-y-20 animate-pulse duration-5000"></div>
-        <div className="absolute bottom-0 left-0 w-[300px] h-[300px] rounded-full bg-pink-300/10 blur-2xl translate-x-10 translate-y-25"></div>
-        <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-white rounded-full animate-ping opacity-60"></div>
-        <div className="absolute top-1/3 right-[45%] w-1.5 h-1.5 bg-white rounded-full animate-ping opacity-40 delay-1000"></div>
-
-        <div className="relative max-w-7xl mx-auto px-6 py-8 md:py-12 lg:px-8 grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
-          
-          {/* Left Side: Elegant high-fashion headings */}
-          <div className="space-y-4 text-left md:col-span-8 z-20">
-            
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-white/20 backdrop-blur-md border border-white/30 rounded-full text-[9px] sm:text-xs font-mono font-bold text-white tracking-widest uppercase shadow-sm">
-              <Sparkles className="w-3 h-3 text-pink-250 animate-pulse" />
-              COLEÇÃO EXCLUSIVA • BARBIE GIRL
-            </div>
-            
-            <div className="space-y-0.5">
-              <h1 className="text-4xl sm:text-5xl lg:text-5xl font-serif font-extrabold tracking-tight text-white leading-none">
-                Barbie<span className="text-pink-100 font-light italic">Girl</span>
-              </h1>
-              <p className="text-lg sm:text-xl font-sans font-semibold text-rose-105 tracking-tight">
-                Coleção de Vestuário Feminino Premium
-              </p>
-            </div>
-            
-            <p className="text-rose-50 max-w-md text-xs sm:text-sm font-normal leading-relaxed">
-              Inspirado na sofisticação contemporânea com pinceladas vibrantes de rosa e acabamentos impecáveis de design de luxo. Vista o seu melhor estilo.
-            </p>
-
-            <div className="flex flex-wrap items-center gap-3 pt-1">
-              <button
-                onClick={handleScrollToCatalog}
-                className="inline-flex items-center gap-1.5 px-6 py-2 bg-white text-pink-600 font-extrabold text-[11px] sm:text-xs uppercase tracking-wider rounded-full hover:bg-pink-50 active:scale-98 transition-all duration-200 shadow-md shadow-pink-900/10 cursor-pointer"
-              >
-                Comprar Coleção
-                <ArrowRight className="w-3.5 h-3.5 text-pink-600" />
-              </button>
+      {/* Dynamic Banner Carousel or Fallback */}
+      {carouselProducts.length > 0 ? (
+        <div className="relative overflow-hidden w-full mb-8 shadow-md rounded-lg bg-slate-950">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentIndex}
+              initial={{ opacity: 0, x: 40 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -40 }}
+              transition={{ duration: 0.5, ease: "easeInOut" }}
+              className={`relative bg-gradient-to-r ${currentGradient} px-6 py-8 md:py-12 lg:px-8 grid grid-cols-1 md:grid-cols-12 gap-8 items-center`}
+            >
+              {/* Glamorous background decoration elements */}
+              <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full bg-rose-500/5 blur-3xl -translate-x-10 -translate-y-20 pointer-events-none"></div>
+              <div className="absolute bottom-0 left-0 w-[300px] h-[300px] rounded-full bg-slate-400/5 blur-2xl translate-x-10 translate-y-25 pointer-events-none"></div>
               
-              <div className="flex items-center gap-1.5 font-mono text-[9px] sm:text-xs text-white bg-black/10 px-2.5 py-0.5 rounded-full border border-white/10">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
-                <span>Cupom ativo: <span className="font-bold underline text-pink-100">BARBIE10</span></span>
-              </div>
-            </div>
-          </div>
+              {/* Left Side: Elegant dynamic headings */}
+              <div className="space-y-4 text-left md:col-span-8 z-20">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white/10 backdrop-blur-md border border-white/10 rounded-full text-[9px] sm:text-xs font-mono font-bold text-rose-300 tracking-widest uppercase shadow-sm">
+                  <Sparkles className="w-3.5 h-3.5 text-rose-450 animate-pulse" />
+                  {carouselProducts[currentIndex].onSale ? 'SUPER OFERTA DA SEMANA • IMPERDÍVEL' : 'DESTAQUE EM ELEGÂNCIA • NOVIDADE'}
+                </div>
+                
+                <div className="space-y-1.5">
+                  <h1 className="text-3xl sm:text-4xl lg:text-5xl font-sans font-black tracking-tight text-white leading-tight">
+                    {carouselProducts[currentIndex].name}
+                  </h1>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-mono text-slate-300 uppercase tracking-widest bg-slate-800/60 px-2.5 py-0.5 rounded border border-slate-700">
+                      {getCategoryLabel(carouselProducts[currentIndex].category)}
+                    </span>
+                    
+                    {carouselProducts[currentIndex].onSale && (
+                      <span className="bg-rose-600 text-white font-mono text-[10px] font-bold px-2 py-0.5 rounded shadow-sm animate-pulse">
+                        OFERTA ESPECIAL
+                      </span>
+                    )}
+                  </div>
+                </div>
+                
+                <p className="text-slate-300 max-w-2xl text-xs sm:text-sm font-normal leading-relaxed line-clamp-3">
+                  {carouselProducts[currentIndex].description}
+                </p>
 
-          {/* Right Side: Slimmer Portrait Visual and Rotating Seal */}
-          <div className="relative md:col-span-4 h-[180px] sm:h-[240px] md:h-[260px] rounded-2xl overflow-hidden group shadow-lg border-2 border-white/20">
-            {/* Dark/pink overlay dynamic gradient */}
-            <div className="absolute inset-0 bg-gradient-to-t from-pink-900/50 via-transparent to-transparent z-10 pointer-events-none"></div>
-            
-            <img
-              src="https://images.unsplash.com/photo-1581044777550-4cfa60707c03?w=800&auto=format&fit=crop&q=80"
-              alt="Modelo usando conjunto rosa premium"
-              className="w-full h-full object-cover transform scale-102 group-hover:scale-105 duration-1000 transition-transform"
-            />
-            
-            {/* Spinning seal badge (Directly matching reference circular tag) */}
-            <div className="absolute top-2.5 left-2.5 z-20 w-16 h-16 sm:w-20 sm:h-20 hidden xs:flex items-center justify-center">
-              {/* Rotating outer ring */}
+                <div className="flex flex-wrap items-center gap-5 pt-2">
+                  <button
+                    onClick={() => handleGoToProduct(carouselProducts[currentIndex].id)}
+                    className="inline-flex items-center gap-2 px-6 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-[11px] sm:text-xs uppercase tracking-wider rounded-md active:scale-98 transition-all duration-200 shadow-md shadow-rose-950/20 cursor-pointer"
+                  >
+                    Ver Detalhes do Produto
+                    <ArrowRight className="w-3.5 h-3.5 text-white" />
+                  </button>
+
+                  <div className="flex flex-col text-left">
+                    <span className="font-mono text-[9px] text-slate-450 uppercase tracking-wider leading-none">Preço Exclusivo</span>
+                    <div className="flex items-baseline gap-2 mt-1">
+                      {carouselProducts[currentIndex].onSale && carouselProducts[currentIndex].promotionalPrice !== undefined ? (
+                        <>
+                          <span className="font-sans font-black text-rose-400 text-xl sm:text-2xl leading-none">
+                            R$ {carouselProducts[currentIndex].promotionalPrice.toFixed(2).replace('.', ',')}
+                          </span>
+                          <span className="font-sans font-medium text-slate-500 text-xs sm:text-sm line-through leading-none">
+                            R$ {carouselProducts[currentIndex].price.toFixed(2).replace('.', ',')}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="font-sans font-black text-white text-xl sm:text-2xl leading-none">
+                          R$ {carouselProducts[currentIndex].price.toFixed(2).replace('.', ',')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Side: Portrait Image View with nice badges */}
               <div 
-                className="absolute inset-0 rounded-full bg-pink-600/95 border border-white/30 backdrop-blur-sm flex items-center justify-center"
-                style={{ animation: 'spin 12s linear infinite' }}
+                onClick={() => handleGoToProduct(carouselProducts[currentIndex].id)}
+                className="relative md:col-span-4 h-[220px] sm:h-[260px] rounded-lg overflow-hidden group shadow-xl border border-white/10 cursor-pointer z-20"
               >
-                <svg className="w-full h-full p-0.5" viewBox="0 0 100 100">
-                  <path
-                    id="rotated-text-path"
-                    d="M 50,50 m -35,0 a 35,35 0 1,1 70,0 a 35,35 0 1,1 -70,0"
-                    fill="none"
-                  />
-                  <text className="font-mono text-[8px] font-bold fill-white tracking-widest">
-                    <textPath href="#rotated-text-path" startOffset="0%">
-                      ED. LIMITADA • FASHION PREMIUM • 
-                    </textPath>
-                  </text>
-                </svg>
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent z-10 pointer-events-none"></div>
+                
+                <img
+                  src={carouselProducts[currentIndex].imageUrl}
+                  alt={carouselProducts[currentIndex].name}
+                  className="w-full h-full object-cover transform scale-102 group-hover:scale-105 duration-700 transition-transform"
+                />
+                
+                <div className="absolute bottom-4 left-4 z-20 text-left">
+                  <div className="font-mono text-[9px] text-rose-400 tracking-wider uppercase font-bold">DESTAQUE PREMIUM</div>
+                  <div className="text-sm font-sans font-extrabold text-white mt-0.5 line-clamp-1">{carouselProducts[currentIndex].name}</div>
+                </div>
               </div>
-              {/* Heart/Sparkle visual indicator center */}
-              <div className="z-10 w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-md">
-                <span className="text-pink-600 text-xs font-bold">♥</span>
-              </div>
-            </div>
+            </motion.div>
+          </AnimatePresence>
 
-            <div className="absolute bottom-4 left-4 z-20 text-left">
-              <div className="font-mono text-[9px] text-pink-200 tracking-wider uppercase font-bold">ESTILO AUTORAL</div>
-              <div className="text-sm font-serif font-bold text-white mt-0.5">La Vie En Rose</div>
+          {/* Carousel dots indicators */}
+          {carouselProducts.length > 1 && (
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
+              {carouselProducts.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setCurrentIndex(idx)}
+                  className={`w-1.5 h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
+                    idx === currentIndex 
+                      ? 'bg-rose-500 w-3' 
+                      : 'bg-white/40 hover:bg-white/70'
+                  }`}
+                  aria-label={`Ir para slide ${idx + 1}`}
+                />
+              ))}
             </div>
-          </div>
-
+          )}
         </div>
-      </div>
+      ) : (
+        /* Immersive Barbie-themed Fallback Banner - Full Bleed and Slimmer design */
+        <div className="relative overflow-hidden bg-gradient-to-r from-pink-550 via-rose-900 to-purple-950 w-full mb-8 shadow-md rounded-lg">
+          {/* Glamorous background decoration elements */}
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full bg-white/5 blur-3xl -translate-x-10 -translate-y-20 animate-pulse duration-5000"></div>
+          <div className="absolute bottom-0 left-0 w-[300px] h-[300px] rounded-full bg-pink-300/5 blur-2xl translate-x-10 translate-y-25"></div>
+
+          <div className="relative max-w-7xl mx-auto px-6 py-8 md:py-12 lg:px-8 grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+            
+            {/* Left Side: Elegant headings */}
+            <div className="space-y-4 text-left md:col-span-8 z-20">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-[9px] sm:text-xs font-mono font-bold text-white tracking-widest uppercase shadow-sm">
+                <Sparkles className="w-3 h-3 text-pink-200 animate-pulse" />
+                COLEÇÃO EXCLUSIVA • BARBIE GIRL
+              </div>
+              
+              <div className="space-y-0.5">
+                <h1 className="text-4xl sm:text-5xl lg:text-5xl font-serif font-extrabold tracking-tight text-white leading-none">
+                  Barbie<span className="text-pink-100 font-light italic">Girl</span>
+                </h1>
+                <p className="text-lg sm:text-xl font-sans font-semibold text-rose-100 tracking-tight">
+                  Coleção de Vestuário Feminino Premium
+                </p>
+              </div>
+              
+              <p className="text-rose-50 max-w-md text-xs sm:text-sm font-normal leading-relaxed">
+                Inspirado na sofisticação contemporânea com pinceladas vibrantes de rosa e acabamentos impecáveis de design de luxo. Vista o seu melhor style.
+              </p>
+
+              <div className="flex flex-wrap items-center gap-3 pt-1">
+                <button
+                  onClick={handleScrollToCatalog}
+                  className="inline-flex items-center gap-1.5 px-6 py-2 bg-white text-pink-600 font-extrabold text-[11px] sm:text-xs uppercase tracking-wider rounded-md hover:bg-pink-50 active:scale-98 transition-all duration-200 shadow-md cursor-pointer"
+                >
+                  Comprar Coleção
+                  <ArrowRight className="w-3.5 h-3.5 text-pink-600" />
+                </button>
+                
+                <div className="flex items-center gap-1.5 font-mono text-[9px] sm:text-xs text-white bg-black/10 px-2.5 py-0.5 rounded-full border border-white/10">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
+                  <span>Cupom ativo: <span className="font-bold underline text-pink-100">BARBIE10</span></span>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Side: Slimmer Portrait Visual and Rotating Seal */}
+            <div className="relative md:col-span-4 h-[180px] sm:h-[240px] md:h-[260px] rounded-lg overflow-hidden group shadow-lg border-2 border-white/15">
+              <div className="absolute inset-0 bg-gradient-to-t from-pink-950/50 via-transparent to-transparent z-10 pointer-events-none"></div>
+              
+              <img
+                src="https://images.unsplash.com/photo-1581044777550-4cfa60707c03?w=800&auto=format&fit=crop&q=80"
+                alt="Modelo usando conjunto rosa premium"
+                className="w-full h-full object-cover transform scale-102 group-hover:scale-105 duration-1000 transition-transform"
+              />
+              
+              {/* Spinning seal badge */}
+              <div className="absolute top-2.5 left-2.5 z-20 w-16 h-16 sm:w-20 sm:h-20 hidden xs:flex items-center justify-center">
+                <div 
+                  className="absolute inset-0 rounded-full bg-pink-600/95 border border-white/30 backdrop-blur-sm flex items-center justify-center"
+                  style={{ animation: 'spin 12s linear infinite' }}
+                >
+                  <svg className="w-full h-full p-0.5" viewBox="0 0 100 100">
+                    <path
+                      id="rotated-text-path"
+                      d="M 50,50 m -35,0 a 35,35 0 1,1 70,0 a 35,35 0 1,1 -70,0"
+                      fill="none"
+                    />
+                    <text className="font-mono text-[8px] font-bold fill-white tracking-widest">
+                      <textPath href="#rotated-text-path" startOffset="0%">
+                        ED. LIMITADA • FASHION PREMIUM • 
+                      </textPath>
+                    </text>
+                  </svg>
+                </div>
+                <div className="z-10 w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-md">
+                  <span className="text-pink-600 text-xs font-bold">♥</span>
+                </div>
+              </div>
+
+              <div className="absolute bottom-4 left-4 z-20 text-left">
+                <div className="font-mono text-[9px] text-pink-200 tracking-wider uppercase font-bold">ESTILO AUTORAL</div>
+                <div className="text-sm font-serif font-bold text-white mt-0.5 animate-pulse">La Vie En Rose</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
 
       {/* Row of Benefit Badges under the banner - Centered responsive grids */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-2 mb-8">

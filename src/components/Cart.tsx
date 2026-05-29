@@ -134,7 +134,10 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
-  const subtotal = cart.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
+  const subtotal = cart.reduce((acc, item) => {
+    const price = (item.product.onSale && item.product.promotionalPrice !== undefined) ? item.product.promotionalPrice : item.product.price;
+    return acc + price * item.quantity;
+  }, 0);
 
   // Validate form and submit order
   const onFinalizeOrder = async (e: React.FormEvent) => {
@@ -321,9 +324,22 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
 
                         {/* Price & quantities toggles */}
                         <div className="flex items-center justify-between pt-1">
-                          <span className="font-sans font-extrabold text-slate-950 text-sm">
-                            R$ {(item.product.price * item.quantity).toFixed(2).replace('.', ',')}
-                          </span>
+                          <div className="flex flex-col text-left">
+                            {item.product.onSale && item.product.promotionalPrice !== undefined ? (
+                              <div className="flex flex-col">
+                                <span className="font-mono text-[10px] text-slate-400 line-through">
+                                  R$ {(item.product.price).toFixed(2).replace('.', ',')}
+                                </span>
+                                <span className="font-sans font-black text-rose-600 text-sm">
+                                  R$ {(item.product.promotionalPrice).toFixed(2).replace('.', ',')}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="font-sans font-extrabold text-slate-950 text-sm">
+                                R$ {item.product.price.toFixed(2).replace('.', ',')}
+                              </span>
+                            )}
+                          </div>
 
                           {/* Mini selector triggers */}
                           <div className="flex items-center border border-slate-200 rounded-md bg-slate-50 p-0.5">

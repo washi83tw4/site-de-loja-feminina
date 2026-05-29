@@ -22,12 +22,21 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
   // Human-readable category badge
   const getCategoryLabel = (cat: string) => {
-    switch (cat) {
-      case 'camisetas': return 'Camiseta';
+    if (!cat) return 'Geral';
+    const normalize = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    const cleanCat = normalize(cat);
+    switch (cleanCat) {
+      case 'camisetas': return 'Camisetas';
+      case 'blusas': return 'Blusas';
       case 'calcas': return 'Calças';
-      case 'casacos': return 'Casaco';
-      case 'acessorios': return 'Acessório';
-      default: return 'Vestuário';
+      case 'shorts': return 'Shorts';
+      case 'vestidos': return 'Vestidos';
+      case 'casacos': return 'Casacos';
+      case 'saias': return 'Saias';
+      case 'bolsas': return 'Bolsas';
+      case 'acessorios': return 'Acessórios';
+      case 'sapatos': return 'Sapatos';
+      default: return cat;
     }
   };
 
@@ -57,6 +66,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           {product.featured && (
             <span className="absolute top-3 left-3 bg-rose-600 text-white font-mono text-[9px] font-bold tracking-wider uppercase px-2.5 py-1 rounded z-10 shadow-sm">
               Mais Vendido
+            </span>
+          )}
+
+          {/* Promotion Badge */}
+          {product.onSale && (
+            <span className="absolute top-3 right-3 bg-rose-600 text-white font-mono text-[9px] font-bold tracking-wider uppercase px-2 py-0.5 rounded z-10 shadow-sm animate-pulse">
+              PROMO
             </span>
           )}
         </div>
@@ -93,9 +109,22 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       <div className="p-4 pt-0 flex items-center justify-between">
         <div>
           <span className="font-mono text-[10px] text-slate-400">Preço</span>
-          <p className="font-sans font-extrabold text-slate-950 text-base leading-none mt-1">
-            R$ {product.price.toFixed(2).replace('.', ',')}
-          </p>
+          <div className="flex items-baseline gap-1.5 mt-1 flex-wrap">
+            {product.onSale && product.promotionalPrice !== undefined ? (
+              <>
+                <span className="font-sans font-black text-rose-600 text-base leading-none">
+                  R$ {product.promotionalPrice.toFixed(2).replace('.', ',')}
+                </span>
+                <span className="font-sans font-medium text-slate-400 text-xs line-through leading-none">
+                  R$ {product.price.toFixed(2).replace('.', ',')}
+                </span>
+              </>
+            ) : (
+              <span className="font-sans font-extrabold text-slate-950 text-base leading-none">
+                R$ {product.price.toFixed(2).replace('.', ',')}
+              </span>
+            )}
+          </div>
         </div>
         
         <span className="w-9 h-9 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-800 group-hover:bg-rose-600 group-hover:text-white group-hover:border-rose-600 transition-colors duration-300">

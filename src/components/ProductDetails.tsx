@@ -32,6 +32,26 @@ export const ProductDetails: React.FC = () => {
     );
   }
 
+  // Human-readable category mapper
+  const getCategoryLabel = (cat: string) => {
+    if (!cat) return 'Geral';
+    const normalize = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    const cleanCat = normalize(cat);
+    switch (cleanCat) {
+      case 'camisetas': return 'Camisetas';
+      case 'blusas': return 'Blusas';
+      case 'calcas': return 'Calças';
+      case 'shorts': return 'Shorts';
+      case 'vestidos': return 'Vestidos';
+      case 'casacos': return 'Casacos';
+      case 'saias': return 'Saias';
+      case 'bolsas': return 'Bolsas';
+      case 'acessorios': return 'Acessórios';
+      case 'sapatos': return 'Sapatos';
+      default: return cat;
+    }
+  };
+
   const [selectedSize, setSelectedSize] = useState<string>('');
   const [selectedColor, setSelectedColor] = useState<string>(product.colors && product.colors.length > 0 ? product.colors[0] : '');
   const [quantity, setQuantity] = useState<number>(1);
@@ -94,14 +114,30 @@ export const ProductDetails: React.FC = () => {
           
           <div>
             <span className="inline-block bg-rose-50 text-rose-600 font-mono text-[10px] uppercase font-bold tracking-widest px-2.5 py-1 rounded">
-              {product.category}
+              {getCategoryLabel(product.category)}
             </span>
             <h1 className="text-2xl sm:text-3xl font-sans font-extrabold text-slate-900 tracking-tight mt-3">
               {product.name}
             </h1>
-            <p className="font-sans font-extrabold text-2xl text-slate-950 mt-2">
-              R$ {product.price.toFixed(2).replace('.', ',')}
-            </p>
+            <div>
+              {product.onSale && product.promotionalPrice !== undefined ? (
+                <div className="flex items-baseline gap-2 mt-2">
+                  <span className="font-sans font-black text-3xl text-rose-600">
+                    R$ {product.promotionalPrice.toFixed(2).replace('.', ',')}
+                  </span>
+                  <span className="font-sans font-medium text-slate-400 text-lg line-through">
+                    R$ {product.price.toFixed(2).replace('.', ',')}
+                  </span>
+                  <span className="bg-rose-50 text-rose-600 font-mono text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    Oferta
+                  </span>
+                </div>
+              ) : (
+                <p className="font-sans font-extrabold text-2xl text-slate-950 mt-2">
+                  R$ {product.price.toFixed(2).replace('.', ',')}
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="h-px bg-slate-100"></div>
