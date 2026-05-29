@@ -2,143 +2,142 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 
+const MP_ACCESS_TOKEN = process.env.MERCADO_PAGO_ACCESS_TOKEN || "APP_USR-8998561393081066-052822-18438df5268019cb403d9aa53c2d96b1-354409374";
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // Use JSON parsing middleware
+  // Body parsing middleware
   app.use(express.json());
 
-  // API Route for creating Mercado Pago payment preference
-  app.post("/api/create-preference", async (req, res) => {
-    // CORS Headers
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-    res.setHeader(
-      'Access-Control-Allow-Headers',
-      'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
-    );
-
-    const token = process.env.MERCADOPAGO_ACCESS_TOKEN;
-    if (!token) {
-      return res.status(500).json({
-        error: 'MERCADOPAGO_ACCESS_TOKEN is missing in the backend environment. Please set it via settings or env.'
-      });
-    }
-
+  // API Route - Mercado Pago preference creation
+  app.post("/api/mercado-pago/create-preference", async (req, res) => {
     try {
-      const { items, payer, orderId } = req.body || {};
+      const { items, payer, external_reference } = req.body;
 
       if (!items || !Array.isArray(items) || items.length === 0) {
-        return res.status(400).json({ error: 'Os itens do carrinho são obrigatórios.' });
+        return res.status(400).json({ error: "Missing items array" });
       }
 
-      // Format items as required by Mercado Pago
-      const formattedItems = items.map((item: any) => {
-        const price = parseFloat(item.price || item.unit_price);
+      // Automatically construct redirect URLs based on host
+      const host = req.get("host") || "localhost:3000";
+      const protocol = req.secure || req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
+      const appBaseUrl = `${protocol}://${host}`;
+
+      const mpItems = items.map((item: any) => {
+        // Calculate appropriate unit price
+        const price = Number(item.price || item.unit_price || 0);
         return {
-          id: item.productId || item.id || '',
-          title: item.title || item.name,
-          quantity: parseInt(item.quantity, 10) || 1,
-          unit_price: Math.round(price * 100) / 100, // precise rounding to two decimals
-          currency_id: 'BRL',
-          picture_url: item.imageUrl || undefined
+          id: String(item.productId || item.id || ""),
+          title: String(item.name || item.title || "Produto"),
+          quantity: Number(item.quantity || 1),
+          unit_price: price,
+          currency_id: "BRL",
+          picture_url: item.imageUrl || item.picture_url || undefined,
         };
       });
 
-      // Detect host and protocol dynamically from incoming headers
-      const host = req.headers['x-forwarded-host'] || req.headers.host || 'site-de-loja-feminina.vercel.app';
-      const proto = req.headers['x-forwarded-proto'] || 'https';
-      const baseUrl = host.includes('localhost') ? `http://${host}` : `${proto}://${host}`;
+      const mpPayer: any = {};
+      if (payer) {
+        mpPayer.email = payer.email;
+        if (payer.name) {
+          const parts = payer.name.trim().split(/\s+/);
+          mpPayer.name = parts[0] || "Cliente";
+          mpPayer.surname = parts.slice(1).join(" ") || "Boutique";
+        }
+        if (payer.phone) {
+          const cleanPhone = String(payer.phone).replace(/\D/g, "");
+          if (cleanPhone.length >= 10) {
+            mpPayer.phone = {
+              area_code: cleanPhone.slice(0, 2),
+              number: cleanPhone.slice(2),
+            };
+          } else {
+            mpPayer.phone = {
+              area_code: "11",
+              number: cleanPhone || "999999999",
+            };
+          }
+        }
+        if (payer.cpf) {
+          const cleanCpf = String(payer.cpf).replace(/\D/g, "");
+          if (cleanCpf) {
+            mpPayer.identification = {
+              type: "CPF",
+              number: cleanCpf,
+            };
+          }
+        }
+      }
 
-      // In case the request host maps to a Vercel domain or similar
-      const productionUrl = 'https://site-de-loja-feminina.vercel.app';
-      const finalBaseUrl = host.includes('vercel.app') || host.includes('localhost') || host.includes('ais-') 
-        ? baseUrl 
-        : productionUrl;
-
-      const mpPayload = {
-        items: formattedItems,
-        payer: payer ? {
-          name: payer.name || undefined,
-          email: payer.email || undefined,
-          phone: payer.phone ? {
-            area_code: payer.phone.area_code || '',
-            number: payer.phone.number || ''
-          } : undefined
-        } : undefined,
-        external_reference: orderId || '',
+      const payload = {
+        items: mpItems,
+        payer: Object.keys(mpPayer).length > 0 ? mpPayer : undefined,
         back_urls: {
-          success: `${finalBaseUrl}/pagamento/sucesso`,
-          failure: `${finalBaseUrl}/pagamento/erro`,
-          pending: `${finalBaseUrl}/pagamento/pendente`
+          success: `${appBaseUrl}/?payment=success&orderId=${external_reference}`,
+          failure: `${appBaseUrl}/?payment=failure&orderId=${external_reference}`,
+          pending: `${appBaseUrl}/?payment=pending&external_reference`,
         },
-        auto_return: 'approved',
-        statement_descriptor: 'BARBIEGIRL'
+        auto_return: "all",
+        external_reference: String(external_reference || ""),
+        statement_descriptor: "BOUTIQUE ATTIRE",
       };
 
-      const mpResponse = await fetch('https://api.mercadopago.com/v1/preferences', {
-        method: 'POST',
+      const response = await fetch("https://api.mercadopago.com/checkout/preferences", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${MP_ACCESS_TOKEN}`,
         },
-        body: JSON.stringify(mpPayload)
+        body: JSON.stringify(payload),
       });
 
-      if (!mpResponse.ok) {
-        const errorText = await mpResponse.text();
-        console.error('Mercado Pago API failed with error:', errorText);
-        return res.status(mpResponse.status).json({
-          error: 'Failed to create preference with Mercado Pago',
-          details: errorText
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Mercado Pago Preference API error:", errorText);
+        return res.status(response.status).json({
+          error: "Failed to create Mercado Pago preference",
+          details: errorText,
         });
       }
 
-      const mpData = await mpResponse.json();
-      return res.status(200).json({
-        id: mpData.id,
-        init_point: mpData.init_point,
-        sandbox_init_point: mpData.sandbox_init_point
+      const data = await response.json();
+      return res.json({
+        id: data.id,
+        init_point: data.init_point,
+        sandbox_init_point: data.sandbox_init_point,
       });
-
-    } catch (error: any) {
-      console.error('Preference router exception:', error);
-      return res.status(500).json({
-        error: 'Ocorreu um erro interno ao processar a preferência de pagamento.',
-        message: error.message
-      });
+    } catch (e: any) {
+      console.error("Endpoint error creating MP preference:", e);
+      return res.status(500).json({ error: "Internal Server Error", message: e.message });
     }
   });
 
-  // Handle local GET probes
-  app.get("/api/create-preference", (req, res) => {
-    res.json({ status: "ok", service: "Mercado Pago Fullstack Provider" });
-  });
-
-  // Base checking route
+  // Health check
   app.get("/api/health", (req, res) => {
-    res.json({ status: "ok" });
+    res.json({ status: "ok", mode: process.env.NODE_ENV });
   });
 
-  // Serve Vite assets in development or build files in production mode
+  // Vite integration as middleware in development
   if (process.env.NODE_ENV !== "production") {
+    console.log("Vite loading in middlewareMode...");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
+    // Production serving
+    const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+    app.get("*", (req, res) => {
+      res.sendFile(path.join(distPath, "index.html"));
     });
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running globally on port ${PORT}`);
+    console.log(`[Server] Listening on http://0.0.0.0:${PORT} in ${process.env.NODE_ENV || "development"} mode`);
   });
 }
 

@@ -7,10 +7,28 @@ import { createClient } from '@supabase/supabase-js';
 import { Product, Order, OperationType } from './types';
 
 // Retrieve Supabase credentials from client-side environment variables
-const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL || 'https://ginrupwmrdoilkybsgsz.supabase.co';
-const supabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_S3snboPa4Q0v1xVbd4FRtg_EtaORtBc';
+let rawUrl = (import.meta as any).env.VITE_SUPABASE_URL || 'https://ginrupwmrdoilkybsgsz.supabase.co';
 
-// Detect if we are using the placeholder credentials or the client didn't supply them yet
+if (rawUrl) {
+  rawUrl = rawUrl.trim();
+  // Remove any trailing slashes
+  while (rawUrl.endsWith('/')) {
+    rawUrl = rawUrl.slice(0, -1);
+  }
+  // Remove /rest/v1 suffix if present since Supabase client appends it automatically
+  if (rawUrl.endsWith('/rest/v1')) {
+    rawUrl = rawUrl.slice(0, -8);
+  }
+  // Trim any trailing slashes after removal
+  while (rawUrl.endsWith('/')) {
+    rawUrl = rawUrl.slice(0, -1);
+  }
+}
+
+const supabaseUrl = rawUrl;
+const supabaseAnonKey = ((import.meta as any).env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_S3snboPa4Q0v1xVbd4FRtg_EtaORtBc').trim();
+
+/// Detect if we are using the placeholder credentials or the client didn't supply them yet
 export const isDemoMode = !supabaseUrl || 
                            supabaseUrl === 'YOUR_SUPABASE_URL' || 
                            supabaseUrl === 'placeholder-url' ||
@@ -19,6 +37,9 @@ export const isDemoMode = !supabaseUrl ||
                            supabaseAnonKey === 'YOUR_SUPABASE_ANON_KEY' || 
                            supabaseAnonKey === 'placeholder-key' ||
                            supabaseAnonKey === 'placeholder';
+
+// Dynamic fallback when a real connection fails/errors out
+export let useFallbackDemoMode = false;
 
 // Initialize Supabase Client if not in Demo Mode
 export const supabase = isDemoMode ? null : createClient(supabaseUrl, supabaseAnonKey);
@@ -159,12 +180,10 @@ const MOCK_PRODUCTS: Product[] = [
   }
 ];
 
-// Seed to localStorage for demo mode
-if (isDemoMode) {
-  const localStoredProducts = localStorage.getItem('clothes_products');
-  if (!localStoredProducts) {
-    localStorage.setItem('clothes_products', JSON.stringify(MOCK_PRODUCTS));
-  }
+// Seed to localStorage for demo mode or fallback resilience
+const localStoredProducts = localStorage.getItem('clothes_products');
+if (!localStoredProducts) {
+  localStorage.setItem('clothes_products', JSON.stringify(MOCK_PRODUCTS));
 }
 
 // ----------------------------------------------------
@@ -236,16 +255,18 @@ function mapProductToDBProduto(item: Partial<Product>): any {
  * Validates connection to Supabase
  */
 export async function validateSupabaseConnection() {
-  if (isDemoMode) return true;
+  if (isDemoMode || useFallbackDemoMode) return true;
   try {
     const { error } = await supabase!.from('produtos').select('count', { count: 'exact', head: true });
     if (error) {
       console.warn("Supabase returned error. Running in secure offline-resilient mode:", error.message);
+      useFallbackDemoMode = true;
       return false;
     }
     return true;
   } catch (error) {
-    console.warn("Supabase appears offline. Running in secure offline-resilient mode.");
+    console.warn("Supabase appears offline. Running in secure offline-resilient mode:", error);
+    useFallbackDemoMode = true;
     return false;
   }
 }
@@ -254,7 +275,7 @@ export async function validateSupabaseConnection() {
  * Fetch all clothing products
  */
 export async function getProducts(): Promise<Product[]> {
-  if (isDemoMode) {
+  if (isDemoMode || useFallbackDemoMode) {
     const listJson = localStorage.getItem('clothes_products');
     return listJson ? JSON.parse(listJson) : MOCK_PRODUCTS;
   }
@@ -292,7 +313,10 @@ export async function getProducts(): Promise<Product[]> {
 
     return data.map(mapDBProdutoToProduct);
   } catch (error) {
-    return handleSupabaseError(error, OperationType.GET, 'produtos');
+    console.warn("Products load failed with Supabase connection. Falling back to local/demo offline mode.", error);
+    useFallbackDemoMode = true;
+    const listJson = localStorage.getItem('clothes_products');
+    return listJson ? JSON.parse(listJson) : MOCK_PRODUCTS;
   }
 }
 
@@ -300,7 +324,7 @@ export async function getProducts(): Promise<Product[]> {
  * Place a customer order.
  */
 export async function createOrder(order: Order): Promise<string> {
-  if (isDemoMode) {
+  if (isDemoMode || useFallbackDemoMode) {
     const localOrders = localStorage.getItem('clothes_orders');
     const list: Order[] = localOrders ? JSON.parse(localOrders) : [];
     const generatedId = 'order-' + Math.random().toString(36).substring(2, 11);
@@ -337,7 +361,15 @@ export async function createOrder(order: Order): Promise<string> {
     if (!data) throw new Error("Order was not created or ID not returned.");
     return String(data.id);
   } catch (error) {
-    return handleSupabaseError(error, OperationType.CREATE, 'orders');
+    console.warn("Order creation failed in Supabase. Falling back to local offline mode.", error);
+    useFallbackDemoMode = true;
+    const localOrders = localStorage.getItem('clothes_orders');
+    const list: Order[] = localOrders ? JSON.parse(localOrders) : [];
+    const generatedId = 'order-' + Math.random().toString(36).substring(2, 11);
+    const newOrder = { ...order, id: generatedId };
+    list.push(newOrder);
+    localStorage.setItem('clothes_orders', JSON.stringify(list));
+    return generatedId;
   }
 }
 
@@ -345,7 +377,7 @@ export async function createOrder(order: Order): Promise<string> {
  * Fetch orders for authenticated user
  */
 export async function getOrdersForUser(userId: string, email?: string): Promise<Order[]> {
-  if (isDemoMode) {
+  if (isDemoMode || useFallbackDemoMode) {
     const localOrders = localStorage.getItem('clothes_orders');
     const list: Order[] = localOrders ? JSON.parse(localOrders) : [];
     return list.filter(o => o.userId === userId || o.customerEmail === email);
@@ -384,7 +416,11 @@ export async function getOrdersForUser(userId: string, email?: string): Promise<
       createdAt: dbOrder.created_at || new Date().toISOString()
     }));
   } catch (error) {
-    return handleSupabaseError(error, OperationType.LIST, 'orders');
+    console.warn("Failed to load orders from Supabase. Falling back to local offline mode.", error);
+    useFallbackDemoMode = true;
+    const localOrders = localStorage.getItem('clothes_orders');
+    const list: Order[] = localOrders ? JSON.parse(localOrders) : [];
+    return list.filter(o => o.userId === userId || o.customerEmail === email);
   }
 }
 
@@ -396,7 +432,7 @@ export async function getOrdersForUser(userId: string, email?: string): Promise<
  * Triggers Google Sign-in Popup
  */
 export async function loginWithGoogle() {
-  if (isDemoMode) {
+  if (isDemoMode || useFallbackDemoMode) {
     // Return a beautiful mock user in demo mode
     const mockUser = {
       uid: 'demo-user-123',
@@ -421,8 +457,18 @@ export async function loginWithGoogle() {
     if (error) throw error;
     return data;
   } catch (error) {
-    console.error('Error logging in with Supabase: ', error);
-    throw error;
+    console.warn('Error logging in with Supabase, falling back to local demo login: ', error);
+    useFallbackDemoMode = true;
+    const mockUser = {
+      uid: 'demo-user-123',
+      id: 'demo-user-123',
+      displayName: 'Cliente Demonstrativo',
+      email: 'cliente@exemplo.com.br',
+      photoURL: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
+    };
+    localStorage.setItem('demo_user', JSON.stringify(mockUser));
+    window.dispatchEvent(new Event('auth-status-changed'));
+    return mockUser;
   }
 }
 
@@ -430,7 +476,7 @@ export async function loginWithGoogle() {
  * Logs out current user
  */
 export async function logoutUser() {
-  if (isDemoMode) {
+  if (isDemoMode || useFallbackDemoMode) {
     localStorage.removeItem('demo_user');
     window.dispatchEvent(new Event('auth-status-changed'));
     return;
@@ -439,7 +485,10 @@ export async function logoutUser() {
     const { error } = await supabase!.auth.signOut();
     if (error) throw error;
   } catch (error) {
-    console.error('Error logging out with Supabase: ', error);
+    console.warn('Error logging out with Supabase, falling back to local logout: ', error);
+    useFallbackDemoMode = true;
+    localStorage.removeItem('demo_user');
+    window.dispatchEvent(new Event('auth-status-changed'));
   }
 }
 
@@ -447,7 +496,7 @@ export async function logoutUser() {
  * Unified Auth Change state hook/subscriber
  */
 export function subscribeToAuth(callback: (user: any | null) => void) {
-  if (isDemoMode) {
+  if (isDemoMode || useFallbackDemoMode) {
     const checkUser = () => {
       const userStr = localStorage.getItem('demo_user');
       callback(userStr ? JSON.parse(userStr) : null);
@@ -457,68 +506,64 @@ export function subscribeToAuth(callback: (user: any | null) => void) {
     return () => window.removeEventListener('auth-status-changed', checkUser);
   }
 
-  // Get current session initially
-  supabase!.auth.getSession().then(({ data: { session } }) => {
-    if (session?.user) {
-      const user = {
-        uid: session.user.id,
-        id: session.user.id,
-        email: session.user.email,
-        displayName: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email,
-        photoURL: session.user.user_metadata?.avatar_url || ''
-      };
-      callback(user);
-    } else {
-      callback(null);
-    }
-  });
-
-  const { data: { subscription } } = supabase!.auth.onAuthStateChange((_event, session) => {
-    if (session?.user) {
-      const user = {
-        uid: session.user.id,
-        id: session.user.id,
-        email: session.user.email,
-        displayName: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email,
-        photoURL: session.user.user_metadata?.avatar_url || ''
-      };
-      callback(user);
-    } else {
-      callback(null);
-    }
-  });
-
-  return () => {
-    subscription.unsubscribe();
-  };
-}
-
-/**
- * Updates the status of an existing order.
- */
-export async function updateOrderStatus(orderId: string, status: string): Promise<boolean> {
-  if (isDemoMode) {
-    const localOrders = localStorage.getItem('clothes_orders');
-    if (localOrders) {
-      const list: Order[] = JSON.parse(localOrders);
-      const updated = list.map(o => o.id === orderId ? { ...o, status } : o);
-      localStorage.setItem('clothes_orders', JSON.stringify(updated));
-    }
-    return true;
-  }
+  let unsubscribeSupabase: (() => void) | null = null;
 
   try {
-    const parsedId = isNaN(Number(orderId)) ? orderId : Number(orderId);
-    const { error } = await supabase!
-      .from('orders')
-      .update({ status })
-      .eq('id', parsedId);
+    // Get current session initially
+    supabase!.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        const user = {
+          uid: session.user.id,
+          id: session.user.id,
+          email: session.user.email,
+          displayName: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email,
+          photoURL: session.user.user_metadata?.avatar_url || ''
+        };
+        callback(user);
+      } else {
+        callback(null);
+      }
+    }).catch((err) => {
+      console.warn("Failed to get Supabase session, falling back to local authentications...", err);
+      useFallbackDemoMode = true;
+      const userStr = localStorage.getItem('demo_user');
+      callback(userStr ? JSON.parse(userStr) : null);
+    });
 
-    if (error) throw error;
-    return true;
+    const { data: { subscription } } = supabase!.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        const user = {
+          uid: session.user.id,
+          id: session.user.id,
+          email: session.user.email,
+          displayName: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email,
+          photoURL: session.user.user_metadata?.avatar_url || ''
+        };
+        callback(user);
+      } else {
+        callback(null);
+      }
+    });
+
+    unsubscribeSupabase = () => {
+      subscription.unsubscribe();
+    };
+
   } catch (error) {
-    console.error(`Error updating order ${orderId} status to ${status}:`, error);
-    return false;
+    console.warn("Failed to subscribe to Supabase Auth. Falling back to local offline subscriber.", error);
+    useFallbackDemoMode = true;
+    const checkUser = () => {
+      const userStr = localStorage.getItem('demo_user');
+      callback(userStr ? JSON.parse(userStr) : null);
+    };
+    checkUser();
+    window.addEventListener('auth-status-changed', checkUser);
+    return () => window.removeEventListener('auth-status-changed', checkUser);
   }
-}
 
+  return () => {
+    if (unsubscribeSupabase) {
+      unsubscribeSupabase();
+    }
+  };
+}

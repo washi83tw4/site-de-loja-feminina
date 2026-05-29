@@ -12,7 +12,6 @@ import { ProductCard } from './components/ProductCard';
 import { ProductDetails } from './components/ProductDetails';
 import { OrdersHistory } from './components/OrdersHistory';
 import { Cart } from './components/Cart';
-import { PaymentStatus } from './components/PaymentStatus';
 import { CreditCard, Eye, ShieldCheck, Mail, Phone, MapPin, Loader2, Sparkles } from 'lucide-react';
 
 function StoreShell() {
@@ -27,13 +26,20 @@ function StoreShell() {
   } = useStore();
 
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<'success' | 'failure' | 'pending' | null>(null);
+  const [paymentOrderId, setPaymentOrderId] = useState<string | null>(null);
 
-  // Extract path and identify payment redirects
-  const pathname = window.location.pathname;
-  const isPaymentSuccess = pathname === '/pagamento/sucesso' || pathname.startsWith('/pagamento/sucesso');
-  const isPaymentError = pathname === '/pagamento/erro' || pathname.startsWith('/pagamento/erro');
-  const isPaymentPending = pathname === '/pagamento/pendente' || pathname.startsWith('/pagamento/pendente');
-  const isPaymentPage = isPaymentSuccess || isPaymentError || isPaymentPending;
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const payment = params.get('payment');
+    const orderId = params.get('orderId');
+    if (payment === 'success' || payment === 'failure' || payment === 'pending') {
+      setPaymentStatus(payment as any);
+      setPaymentOrderId(orderId);
+      // Clean query parameters so they don't persist on refresh
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
 
   // Filter products by selected category and active search queries
   const filteredProducts = products.filter(product => {
@@ -66,19 +72,84 @@ function StoreShell() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50/50 flex flex-col font-sans selection:bg-rose-600 selection:text-white overflow-x-hidden w-full">
+    <div className="min-h-screen bg-slate-50/50 flex flex-col font-sans selection:bg-rose-600 selection:text-white overflow-x-hidden w-full font-sans">
       
       {/* Dynamic Navigation Header */}
       <Header onToggleCart={() => setIsCartOpen(true)} />
+
+      {/* Mercado Pago Payment Status Warnings */}
+      {paymentStatus === 'success' && (
+        <div className="bg-emerald-50 border-b border-emerald-100 py-3.5 px-4 sm:px-6 lg:px-8 text-emerald-950 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 animate-fade-in text-left">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="font-extrabold text-sm text-slate-900 leading-tight">Pagamento Recebido pelo Mercado Pago!</p>
+              <p className="text-slate-500 font-medium text-xs mt-0.5">
+                Seu pagamento {paymentOrderId ? `para o pedido #${paymentOrderId}` : ''} foi processado com sucesso. Obrigado pela preferência!
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setPaymentStatus(null)}
+            className="p-1 px-3.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-[11px] font-bold rounded-lg cursor-pointer transition shadow-xs self-start sm:self-center"
+          >
+            Entendido
+          </button>
+        </div>
+      )}
+
+      {paymentStatus === 'failure' && (
+        <div className="bg-rose-50 border-b border-rose-100 py-3.5 px-4 sm:px-6 lg:px-8 text-rose-950 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 animate-fade-in text-left">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 shrink-0">
+              <CreditCard className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="font-extrabold text-sm text-slate-900 leading-tight">Ocorreu um problema no pagamento</p>
+              <p className="text-slate-500 font-medium text-xs mt-0.5 border-none">
+                A transação ou checkout foi cancelado no Mercado Pago. Se necessário, abra seu carrinho para tentar pagar novamente.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setPaymentStatus(null)}
+            className="p-1 px-3.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-[11px] font-bold rounded-lg cursor-pointer transition shadow-xs self-start sm:self-center"
+          >
+            Fechar aviso
+          </button>
+        </div>
+      )}
+
+      {paymentStatus === 'pending' && (
+        <div className="bg-amber-50 border-b border-amber-100 py-3.5 px-4 sm:px-6 lg:px-8 text-amber-950 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 animate-fade-in text-left">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
+              <Loader2 className="w-5 h-5 animate-spin" />
+            </div>
+            <div>
+              <p className="font-extrabold text-sm text-slate-900 leading-tight">Pagamento em Processamento</p>
+              <p className="text-slate-500 font-medium text-xs mt-0.5">
+                O Mercado Pago está analisando a transação. O status do seu pedido será atualizado em breve no seu perfil de pedidos.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setPaymentStatus(null)}
+            className="p-1 px-3.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-[11px] font-bold rounded-lg cursor-pointer transition shadow-xs self-start sm:self-center"
+          >
+            Entendido
+          </button>
+        </div>
+      )}
 
       {/* Cart Slider Overlay */}
       <Cart isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
 
       {/* App Main Area */}
       <main className="flex-1">
-        {isPaymentPage ? (
-          <PaymentStatus type={isPaymentSuccess ? 'sucesso' : isPaymentError ? 'erro' : 'pendente'} />
-        ) : currentView === 'home' ? (
+        {currentView === 'home' ? (
           <div>
             {/* Beautiful Promo Banner */}
             <Banner />

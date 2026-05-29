@@ -37,6 +37,9 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
   const [step, setStep] = useState<'cart' | 'checkout' | 'success'>('cart');
   const [createdOrderId, setCreatedOrderId] = useState('');
   const [copiedId, setCopiedId] = useState(false);
+  const [paymentUrl, setPaymentUrl] = useState('');
+  const [preferenceId, setPreferenceId] = useState('');
+  const [isCreatingPreference, setIsCreatingPreference] = useState(false);
 
   // Form states
   const [customerName, setCustomerName] = useState('');
@@ -53,7 +56,6 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
   const [notes, setNotes] = useState('');
   const [formError, setFormError] = useState('');
   const [zipLoading, setZipLoading] = useState(false);
-  const [paymentLoading, setPaymentLoading] = useState(false);
 
   // Prefill Google authenticated profiles if active
   useEffect(() => {
@@ -182,7 +184,8 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
     }
 
     setFormError('');
-    setPaymentLoading(true);
+    setPaymentUrl('');
+    setPreferenceId('');
 
     try {
       const orderId = await handleCheckout({
@@ -202,56 +205,51 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
 
       setCreatedOrderId(orderId);
 
-      // Map cart items with their actual sale/promotional prices for the payment gateway
-      const paymentItems = cart.map(item => {
-        const itemPrice = (item.product.onSale && item.product.promotionalPrice !== undefined)
-          ? item.product.promotionalPrice
-          : item.product.price;
-        return {
-          productId: item.product.id,
-          name: item.product.name,
-          price: itemPrice,
-          quantity: item.quantity,
-          imageUrl: item.product.imageUrl
-        };
-      });
+      // Call backend to create Mercado Pago preference
+      setIsCreatingPreference(true);
+      try {
+        const mpResponse = await fetch('/api/mercado-pago/create-preference', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            items: cart.map(item => {
+              const itemPrice = (item.product.onSale && item.product.promotionalPrice !== undefined) ? item.product.promotionalPrice : item.product.price;
+              return {
+                id: item.product.id,
+                name: `${item.product.name} (Tam: ${item.selectedSize}${item.selectedColor ? `, Cor: ${item.selectedColor}` : ''})`,
+                price: itemPrice,
+                quantity: item.quantity,
+                imageUrl: item.product.imageUrl
+              };
+            }),
+            payer: {
+              name: customerName,
+              email: customerEmail,
+              phone: customerPhone,
+              cpf: customerCpf
+            },
+            external_reference: orderId
+          })
+        });
 
-      // Prepare request payload for secure create-preference API
-      const response = await fetch('/api/create-preference', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          orderId,
-          items: paymentItems,
-          payer: {
-            name: customerName,
-            email: customerEmail,
-            phone: {
-              area_code: customerPhone.replace(/\D/g, '').slice(0, 2),
-              number: customerPhone.replace(/\D/g, '').slice(2)
-            }
-          }
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Não foi possível gerar a preferência de pagamento no Mercado Pago.');
+        if (mpResponse.ok) {
+          const mpData = await mpResponse.json();
+          setPaymentUrl(mpData.init_point || '');
+          setPreferenceId(mpData.id || '');
+        } else {
+          console.error('Failed to create Mercado Pago preference:', await mpResponse.text());
+        }
+      } catch (mpError) {
+        console.error('Error generating payment preference:', mpError);
+      } finally {
+        setIsCreatingPreference(false);
       }
 
-      const data = await response.json();
-      if (data.init_point) {
-        // Redirect client to Mercado Pago Checkout Pro
-        window.location.href = data.init_point;
-      } else {
-        throw new Error('Link de checkout não recebido do Mercado Pago.');
-      }
+      setStep('success');
     } catch (err: any) {
-      console.error('Mercado Pago integration error:', err);
-      setFormError(err.message || 'Ocorreu um erro ao processar o seu pagamento. Tente novamente.');
-      setPaymentLoading(false);
+      setFormError(err.message || 'Ocorreu um erro ao finalizar o seu pedido. Tente novamente.');
     }
   };
 
@@ -267,6 +265,8 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
     setStep('cart');
     setCreatedOrderId('');
     setFormError('');
+    setPaymentUrl('');
+    setPreferenceId('');
     onClose();
   };
 
@@ -705,8 +705,8 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
                 <div className="pt-1">
                   <button
                     type="submit"
-                    disabled={checkoutLoading || paymentLoading}
-                    className="w-full h-12 bg-sky-600 hover:bg-sky-700 disabled:bg-slate-350 text-white font-extrabold rounded-lg text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-lg active:scale-98 transition-all duration-200 cursor-pointer"
+                    disabled={checkoutLoading}
+                    className="w-full h-12 bg-rose-600 hover:bg-rose-700 disabled:bg-slate-450 text-white font-extrabold rounded-lg text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-lg active:scale-98 transition-all duration-200 cursor-pointer"
                     id="checkout-finalize-button"
                   >
                     {checkoutLoading ? (
@@ -714,20 +714,12 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
                         <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                         Gravando pedido...
                       </span>
-                    ) : paymentLoading ? (
-                      <span className="flex items-center gap-2">
-                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                        Ativando Mercado Pago...
-                      </span>
                     ) : (
-                      <>
-                        <CreditCard className="w-4 h-5 mr-1" />
-                        Pagar com Mercado Pago
-                      </>
+                      'Finalizar pedido'
                     )}
                   </button>
                   <p className="text-[10px] text-slate-400 text-center mt-2">
-                    Você será redirecionado com segurança para o Checkout Pro do Mercado Pago para efetivar sua compra.
+                    Ao finalizar, seu pedido será gerado e visualizado com um código identificador único.
                   </p>
                 </div>
               </div>
@@ -777,11 +769,40 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
                 </div>
               </div>
 
-              <div className="pt-4 w-full max-w-sm">
+              {/* Mercado Pago Payment panel */}
+              {isCreatingPreference ? (
+                <div className="w-full bg-slate-50 border border-slate-100 rounded-xl p-6 flex flex-col items-center justify-center space-y-3.5 max-w-sm mx-auto">
+                  <div className="w-5 h-5 border-2 border-rose-600 border-t-transparent rounded-full animate-spin"></div>
+                  <span className="text-xs text-slate-500 font-medium">Gerando link do Mercado Pago...</span>
+                </div>
+              ) : paymentUrl ? (
+                <div className="w-full bg-sky-50/70 border border-sky-100 rounded-xl p-4 space-y-3 max-w-sm mx-auto text-left">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-full bg-sky-500 animate-pulse"></div>
+                    <span className="font-sans font-extrabold text-slate-800 text-xs">
+                      Pague com Mercado Pago
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-relaxed font-normal">
+                    Conclua sua compra agora usando <strong>Pix</strong> (liberação instantânea), <strong>Cartão de Crédito</strong> em parcelas ou <strong>Boleto</strong>.
+                  </p>
+                  <a
+                    href={paymentUrl}
+                    target="_top"
+                    rel="noopener noreferrer"
+                    className="w-full h-11 bg-[#009ee3] hover:bg-[#0081ba] text-white font-extrabold rounded-lg text-xs flex items-center justify-center gap-2 transition-all duration-200 shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-98 cursor-pointer"
+                  >
+                    <CreditCard className="w-4 h-4 text-white" />
+                    Pagar via Mercado Pago
+                  </a>
+                </div>
+              ) : null}
+
+              <div className="pt-2 w-full max-w-sm font-sans">
                 <button
                   type="button"
                   onClick={handleCloseAndReset}
-                  className="w-full h-12 bg-slate-900 hover:bg-slate-800 text-white font-extrabold rounded-lg text-sm transition-all duration-200 cursor-pointer shadow-sm active:scale-98"
+                  className="w-full h-11 bg-slate-900 hover:bg-slate-800 text-white font-extrabold rounded-lg text-xs transition-all duration-200 cursor-pointer shadow-sm active:scale-98"
                   id="checkout-success-home-dismiss"
                 >
                   Continuar navegando
