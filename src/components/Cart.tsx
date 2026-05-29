@@ -53,6 +53,7 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
   const [notes, setNotes] = useState('');
   const [formError, setFormError] = useState('');
   const [zipLoading, setZipLoading] = useState(false);
+  const [paymentLoading, setPaymentLoading] = useState(false);
 
   // Prefill Google authenticated profiles if active
   useEffect(() => {
@@ -181,6 +182,7 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
     }
 
     setFormError('');
+    setPaymentLoading(true);
 
     try {
       const orderId = await handleCheckout({
@@ -199,9 +201,57 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
       });
 
       setCreatedOrderId(orderId);
-      setStep('success');
+
+      // Map cart items with their actual sale/promotional prices for the payment gateway
+      const paymentItems = cart.map(item => {
+        const itemPrice = (item.product.onSale && item.product.promotionalPrice !== undefined)
+          ? item.product.promotionalPrice
+          : item.product.price;
+        return {
+          productId: item.product.id,
+          name: item.product.name,
+          price: itemPrice,
+          quantity: item.quantity,
+          imageUrl: item.product.imageUrl
+        };
+      });
+
+      // Prepare request payload for secure create-preference API
+      const response = await fetch('/api/create-preference', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          orderId,
+          items: paymentItems,
+          payer: {
+            name: customerName,
+            email: customerEmail,
+            phone: {
+              area_code: customerPhone.replace(/\D/g, '').slice(0, 2),
+              number: customerPhone.replace(/\D/g, '').slice(2)
+            }
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Não foi possível gerar a preferência de pagamento no Mercado Pago.');
+      }
+
+      const data = await response.json();
+      if (data.init_point) {
+        // Redirect client to Mercado Pago Checkout Pro
+        window.location.href = data.init_point;
+      } else {
+        throw new Error('Link de checkout não recebido do Mercado Pago.');
+      }
     } catch (err: any) {
-      setFormError(err.message || 'Ocorreu um erro ao finalizar o seu pedido. Tente novamente.');
+      console.error('Mercado Pago integration error:', err);
+      setFormError(err.message || 'Ocorreu um erro ao processar o seu pagamento. Tente novamente.');
+      setPaymentLoading(false);
     }
   };
 
@@ -655,8 +705,8 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
                 <div className="pt-1">
                   <button
                     type="submit"
-                    disabled={checkoutLoading}
-                    className="w-full h-12 bg-rose-600 hover:bg-rose-700 disabled:bg-slate-450 text-white font-extrabold rounded-lg text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-lg active:scale-98 transition-all duration-200 cursor-pointer"
+                    disabled={checkoutLoading || paymentLoading}
+                    className="w-full h-12 bg-sky-600 hover:bg-sky-700 disabled:bg-slate-350 text-white font-extrabold rounded-lg text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-lg active:scale-98 transition-all duration-200 cursor-pointer"
                     id="checkout-finalize-button"
                   >
                     {checkoutLoading ? (
@@ -664,12 +714,20 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
                         <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                         Gravando pedido...
                       </span>
+                    ) : paymentLoading ? (
+                      <span className="flex items-center gap-2">
+                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                        Ativando Mercado Pago...
+                      </span>
                     ) : (
-                      'Finalizar pedido'
+                      <>
+                        <CreditCard className="w-4 h-5 mr-1" />
+                        Pagar com Mercado Pago
+                      </>
                     )}
                   </button>
                   <p className="text-[10px] text-slate-400 text-center mt-2">
-                    Ao finalizar, seu pedido será gerado e visualizado com um código identificador único.
+                    Você será redirecionado com segurança para o Checkout Pro do Mercado Pago para efetivar sua compra.
                   </p>
                 </div>
               </div>

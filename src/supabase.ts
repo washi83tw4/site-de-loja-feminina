@@ -492,3 +492,33 @@ export function subscribeToAuth(callback: (user: any | null) => void) {
     subscription.unsubscribe();
   };
 }
+
+/**
+ * Updates the status of an existing order.
+ */
+export async function updateOrderStatus(orderId: string, status: string): Promise<boolean> {
+  if (isDemoMode) {
+    const localOrders = localStorage.getItem('clothes_orders');
+    if (localOrders) {
+      const list: Order[] = JSON.parse(localOrders);
+      const updated = list.map(o => o.id === orderId ? { ...o, status } : o);
+      localStorage.setItem('clothes_orders', JSON.stringify(updated));
+    }
+    return true;
+  }
+
+  try {
+    const parsedId = isNaN(Number(orderId)) ? orderId : Number(orderId);
+    const { error } = await supabase!
+      .from('orders')
+      .update({ status })
+      .eq('id', parsedId);
+
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error(`Error updating order ${orderId} status to ${status}:`, error);
+    return false;
+  }
+}
+

@@ -12,6 +12,7 @@ import { ProductCard } from './components/ProductCard';
 import { ProductDetails } from './components/ProductDetails';
 import { OrdersHistory } from './components/OrdersHistory';
 import { Cart } from './components/Cart';
+import { PaymentStatus } from './components/PaymentStatus';
 import { CreditCard, Eye, ShieldCheck, Mail, Phone, MapPin, Loader2, Sparkles } from 'lucide-react';
 
 function StoreShell() {
@@ -26,6 +27,13 @@ function StoreShell() {
   } = useStore();
 
   const [isCartOpen, setIsCartOpen] = useState(false);
+
+  // Extract path and identify payment redirects
+  const pathname = window.location.pathname;
+  const isPaymentSuccess = pathname === '/pagamento/sucesso' || pathname.startsWith('/pagamento/sucesso');
+  const isPaymentError = pathname === '/pagamento/erro' || pathname.startsWith('/pagamento/erro');
+  const isPaymentPending = pathname === '/pagamento/pendente' || pathname.startsWith('/pagamento/pendente');
+  const isPaymentPage = isPaymentSuccess || isPaymentError || isPaymentPending;
 
   // Filter products by selected category and active search queries
   const filteredProducts = products.filter(product => {
@@ -68,7 +76,9 @@ function StoreShell() {
 
       {/* App Main Area */}
       <main className="flex-1">
-        {currentView === 'home' ? (
+        {isPaymentPage ? (
+          <PaymentStatus type={isPaymentSuccess ? 'sucesso' : isPaymentError ? 'erro' : 'pendente'} />
+        ) : currentView === 'home' ? (
           <div>
             {/* Beautiful Promo Banner */}
             <Banner />
