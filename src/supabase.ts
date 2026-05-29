@@ -424,6 +424,39 @@ export async function getOrdersForUser(userId: string, email?: string): Promise<
   }
 }
 
+/**
+ * Update the status of an existing order
+ */
+export async function updateOrderStatus(orderId: string, status: string): Promise<void> {
+  if (isDemoMode || useFallbackDemoMode) {
+    const localOrders = localStorage.getItem('clothes_orders');
+    if (localOrders) {
+      const list: Order[] = JSON.parse(localOrders);
+      const updatedList = list.map(o => o.id === orderId ? { ...o, status } : o);
+      localStorage.setItem('clothes_orders', JSON.stringify(updatedList));
+    }
+    return;
+  }
+
+  try {
+    const queryId = isNaN(Number(orderId)) ? orderId : Number(orderId);
+    const { error } = await supabase!
+      .from('orders')
+      .update({ status })
+      .eq('id', queryId);
+
+    if (error) throw error;
+  } catch (error) {
+    console.warn("Failed to update order status in Supabase. Updating local fallback.", error);
+    const localOrders = localStorage.getItem('clothes_orders');
+    if (localOrders) {
+      const list: Order[] = JSON.parse(localOrders);
+      const updatedList = list.map(o => o.id === orderId ? { ...o, status } : o);
+      localStorage.setItem('clothes_orders', JSON.stringify(updatedList));
+    }
+  }
+}
+
 // ----------------------------------------------------
 // AUTHENTICATION API
 // ----------------------------------------------------

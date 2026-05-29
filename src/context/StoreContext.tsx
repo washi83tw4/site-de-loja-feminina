@@ -5,7 +5,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Product, CartItem, Category, Order } from '../types';
-import { getProducts, subscribeToAuth, loginWithGoogle, logoutUser, createOrder, getOrdersForUser } from '../supabase';
+import { getProducts, subscribeToAuth, loginWithGoogle, logoutUser, createOrder, getOrdersForUser, updateOrderStatus } from '../supabase';
 
 interface StoreContextProps {
   products: Product[];
@@ -44,6 +44,7 @@ interface StoreContextProps {
   setSelectedProductId: (id: string | null) => void;
   userOrders: Order[];
   fetchUserOrders: () => Promise<void>;
+  updateOrderStatus: (orderId: string, status: string) => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextProps | undefined>(undefined);
@@ -250,7 +251,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           };
         }),
         total: subtotal,
-        status: 'novo',
+        status: 'Aguardando Pagamento',
         createdAt: new Date().toISOString()
       };
 
@@ -267,6 +268,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       throw err;
     } finally {
       setCheckoutLoading(false);
+    }
+  };
+
+  const updateStoreOrderStatus = async (orderId: string, status: string) => {
+    try {
+      await updateOrderStatus(orderId, status);
+      await fetchUserOrders();
+    } catch (err) {
+      console.error("Failed to update store order status:", err);
     }
   };
 
@@ -294,7 +304,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       selectedProductId,
       setSelectedProductId,
       userOrders,
-      fetchUserOrders
+      fetchUserOrders,
+      updateOrderStatus: updateStoreOrderStatus
     }}>
       {children}
     </StoreContext.Provider>

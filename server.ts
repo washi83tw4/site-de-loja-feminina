@@ -73,7 +73,7 @@ async function startServer() {
         back_urls: {
           success: "https://site-de-loja-feminina.vercel.app/pagamento/sucesso",
           failure: "https://site-de-loja-feminina.vercel.app/pagamento/erro",
-          pending: "https://site-de-loja-feminina.vercel.app/pagamento/pendent",
+          pending: "https://site-de-loja-feminina.vercel.app/pagamento/pendente",
         },
         auto_return: "all",
         external_reference: String(external_reference || ""),
@@ -172,7 +172,7 @@ async function startServer() {
         back_urls: {
           success: "https://site-de-loja-feminina.vercel.app/pagamento/sucesso",
           failure: "https://site-de-loja-feminina.vercel.app/pagamento/erro",
-          pending: "https://site-de-loja-feminina.vercel.app/pagamento/pendent",
+          pending: "https://site-de-loja-feminina.vercel.app/pagamento/pendente",
         },
         auto_return: "all",
         external_reference: String(external_reference || ""),

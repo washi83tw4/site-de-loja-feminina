@@ -22,7 +22,8 @@ function StoreShell() {
     searchQuery, 
     currentView,
     setSelectedCategory,
-    setSearchQuery 
+    setSearchQuery,
+    updateOrderStatus
   } = useStore();
 
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -38,21 +39,34 @@ function StoreShell() {
     if (pathname.includes('/pagamento/sucesso') || payment === 'success') {
       setPaymentStatus('success');
       setPaymentOrderId(orderId);
+      if (orderId) {
+        updateOrderStatus(orderId, 'Pago');
+      }
       window.history.replaceState({}, document.title, '/');
     } else if (pathname.includes('/pagamento/erro') || payment === 'failure') {
       setPaymentStatus('failure');
       setPaymentOrderId(orderId);
+      if (orderId) {
+        updateOrderStatus(orderId, 'Cancelado');
+      }
       window.history.replaceState({}, document.title, '/');
-    } else if (pathname.includes('/pagamento/pendent') || payment === 'pending') {
+    } else if (pathname.includes('/pagamento/pendent') || pathname.includes('/pagamento/pendente') || payment === 'pending') {
       setPaymentStatus('pending');
       setPaymentOrderId(orderId);
+      if (orderId) {
+        updateOrderStatus(orderId, 'Pendente');
+      }
       window.history.replaceState({}, document.title, '/');
     } else if (payment === 'success' || payment === 'failure' || payment === 'pending') {
       setPaymentStatus(payment as any);
       setPaymentOrderId(orderId);
+      if (orderId) {
+        const mappedStatus = payment === 'success' ? 'Pago' : (payment === 'failure' ? 'Cancelado' : 'Pendente');
+        updateOrderStatus(orderId, mappedStatus);
+      }
       window.history.replaceState({}, document.title, '/');
     }
-  }, []);
+  }, [updateOrderStatus]);
 
   // Filter products by selected category and active search queries
   const filteredProducts = products.filter(product => {

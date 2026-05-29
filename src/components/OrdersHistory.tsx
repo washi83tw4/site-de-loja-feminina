@@ -5,7 +5,7 @@
 
 import React, { useEffect } from 'react';
 import { useStore } from '../context/StoreContext';
-import { Clock, CheckCircle2, ChevronLeft, Calendar, FileText, ShoppingBag } from 'lucide-react';
+import { Clock, CheckCircle2, ChevronLeft, Calendar, FileText, ShoppingBag, XCircle } from 'lucide-react';
 
 export const OrdersHistory: React.FC = () => {
   const { user, userOrders, fetchUserOrders, setCurrentView } = useStore();
@@ -115,10 +115,27 @@ export const OrdersHistory: React.FC = () => {
                   </div>
 
                   {/* Order state tracker status badge */}
-                  <div className="inline-flex items-center gap-1 px-3 py-1 bg-green-50 text-green-700 border border-green-200 rounded text-xs font-bold font-semibold">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    Completo
-                  </div>
+                  {order.status === 'Pago' ? (
+                    <div className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-250 rounded text-xs font-bold font-semibold">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Pago
+                    </div>
+                  ) : order.status === 'Cancelado' ? (
+                    <div className="inline-flex items-center gap-1 px-3 py-1 bg-rose-50 text-rose-700 border border-rose-205 rounded text-xs font-bold font-semibold">
+                      <XCircle className="w-3.5 h-3.5" />
+                      Cancelado
+                    </div>
+                  ) : order.status === 'Pendente' ? (
+                    <div className="inline-flex items-center gap-1 px-3 py-1 bg-sky-50 text-sky-700 border border-sky-200 rounded text-xs font-bold font-semibold">
+                      <Clock className="w-3.5 h-3.5" />
+                      Pendente
+                    </div>
+                  ) : (
+                    <div className="inline-flex items-center gap-1 px-3 py-1 bg-amber-50 text-amber-700 border border-amber-205 rounded text-xs font-bold font-semibold">
+                      <Clock className="w-3.5 h-3.5 animate-pulse" />
+                      Aguardando Pagamento
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -150,7 +167,13 @@ export const OrdersHistory: React.FC = () => {
               <div className="border-t border-slate-100 pt-4 flex justify-between items-center bg-slate-50/50 -mx-6 -mb-6 p-6 rounded-b-xl">
                 <div>
                   <span className="font-sans font-medium text-xs text-slate-500 block">Status do Pedido</span>
-                  <span className="font-sans font-bold text-xs text-rose-600 block mt-0.5 capitalize">{order.status || 'Novo'}</span>
+                  <span className={`font-sans font-bold text-xs block mt-0.5 ${
+                    order.status === 'Pago' ? 'text-emerald-600' :
+                    order.status === 'Cancelado' ? 'text-rose-600' :
+                    order.status === 'Pendente' ? 'text-sky-600' : 'text-amber-600'
+                  }`}>
+                    {order.status || 'Aguardando Pagamento'}
+                  </span>
                 </div>
 
                 <div>
