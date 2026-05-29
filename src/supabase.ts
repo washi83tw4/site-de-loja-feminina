@@ -192,6 +192,8 @@ function mapDBProdutoToProduct(db: any): Product {
     banner: db.banner === true,
     active: db.ativo !== false,
     imageUrl: db.imagem || '',
+    bannerImage: db.banner_image || '',
+    bannerBg: db.banner_bg || '',
     category: db.categoria || 'all',
     sizes: sizes,
     stock: db.estoque || 0,
@@ -223,6 +225,8 @@ function mapProductToDBProduto(item: Partial<Product>): any {
     tamanho: tamanhoStr,
     descricao: item.description || '',
     imagem: item.imageUrl || '',
+    banner_image: item.bannerImage || '',
+    banner_bg: item.bannerBg || '',
     estoque: item.stock || 12,
     tamanhos_estoque: tamanhosEstoque
   };

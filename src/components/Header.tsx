@@ -197,59 +197,19 @@ export const Header: React.FC<HeaderProps> = ({ onToggleCart }) => {
         {/* Subheader / Submenu Categories bar as shown in reference */}
         <div className="hidden sm:block bg-rose-50/40 border-t border-rose-100/40 py-2.5 px-4 overflow-x-auto whitespace-nowrap scrollbar-none">
           <div className="max-w-7xl mx-auto flex items-center justify-center gap-1.5 sm:gap-4 md:gap-6 text-xs font-sans">
-            <button
-              onClick={() => handleSelectCategory('all')}
-              className={`px-3 py-1.5 rounded-full font-bold transition-all duration-200 relative cursor-pointer ${
-                selectedCategory === 'all' 
-                  ? 'bg-pink-600 text-white shadow-sm shadow-pink-100 scale-102' 
-                  : 'text-slate-650 hover:text-pink-600 hover:bg-rose-50/60'
-              }`}
-            >
-              ⭐ Tudo para você
-            </button>
-            <button
-              onClick={() => handleSelectCategory('camisetas')}
-              className={`px-3 py-1.5 rounded-full font-bold transition-all duration-200 relative cursor-pointer ${
-                selectedCategory === 'camisetas' 
-                  ? 'bg-pink-600 text-white shadow-sm shadow-pink-100 scale-102' 
-                  : 'text-slate-650 hover:text-pink-600 hover:bg-rose-50/60'
-              }`}
-            >
-              🌸 Blusas e Camisetas
-            </button>
-            <button
-              onClick={() => handleSelectCategory('calcas')}
-              className={`px-3 py-1.5 rounded-full font-bold transition-all duration-200 relative cursor-pointer ${
-                selectedCategory === 'calcas' 
-                  ? 'bg-pink-600 text-white shadow-sm shadow-pink-100 scale-102' 
-                  : 'text-slate-650 hover:text-pink-600 hover:bg-rose-50/60'
-              }`}
-            >
-              👖 Calças e Shorts
-            </button>
-            <button
-              onClick={() => handleSelectCategory('casacos')}
-              className={`px-3 py-1.5 rounded-full font-bold transition-all duration-200 relative cursor-pointer ${
-                selectedCategory === 'casacos' 
-                  ? 'bg-pink-600 text-white shadow-sm shadow-pink-100 scale-102' 
-                  : 'text-slate-650 hover:text-pink-600 hover:bg-rose-50/60'
-              }`}
-            >
-              👗 Vestidos e Casacos
-            </button>
-            <button
-              onClick={() => handleSelectCategory('acessorios')}
-              className={`px-3 py-1.5 rounded-full font-bold transition-all duration-200 relative cursor-pointer ${
-                selectedCategory === 'acessorios' 
-                  ? 'bg-pink-600 text-white shadow-sm shadow-pink-100 scale-102' 
-                  : 'text-slate-650 hover:text-pink-600 hover:bg-rose-50/60'
-              }`}
-            >
-              👜 Bolsas e Acessórios
-            </button>
-            <div className="hidden lg:flex items-center text-[10px] uppercase font-bold text-pink-500 bg-pink-100/60 px-2 py-0.5 rounded-md animate-pulse">
-              🔥 Novidades
-            </div>
+            {categories.map((cat) => (
+              <button
+                key={`header-cat-${cat.id}`}
+                onClick={() => handleSelectCategory(cat.name)}
+                className={`px-3 py-1.5 rounded-full font-bold transition-all duration-200 relative cursor-pointer ${
+                  selectedCategory === cat.name 
+                    ? 'bg-pink-600 text-white shadow-sm shadow-pink-100 scale-102' 
+                    : 'text-slate-600 hover:text-pink-600 hover:bg-rose-50/60'
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
           </div>
         </div>
       </header>

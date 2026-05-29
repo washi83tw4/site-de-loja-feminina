@@ -48,11 +48,33 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       <div>
         {/* Product Image Stage */}
         <div className="relative aspect-[3/4] bg-slate-50 overflow-hidden">
-          <img
-            src={product.imageUrl}
-            alt={product.name}
-            className="w-full h-full object-cover transform duration-500 transition group-hover:scale-103"
-          />
+          {product.imageUrl && product.imageUrl.trim() !== '' ? (
+            <img
+              src={product.imageUrl}
+              alt={product.name}
+              className="w-full h-full object-cover transform duration-500 transition group-hover:scale-103"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                const el = document.getElementById(`placeholder-${product.id}`);
+                if (el) el.classList.remove('hidden');
+              }}
+            />
+          ) : null}
+          
+          <div 
+            id={`placeholder-${product.id}`}
+            className={`${product.imageUrl && product.imageUrl.trim() !== '' ? 'hidden absolute inset-0' : 'w-full h-full'} bg-gradient-to-br from-rose-50/55 via-slate-50 to-pink-50/30 flex flex-col items-center justify-center p-4 text-center select-none`}
+          >
+            {/* Elegant fashion hanger SVG */}
+            <div className="w-11 h-11 rounded-full bg-white border border-rose-100 flex items-center justify-center text-pink-500 shadow-xs mb-2 transform group-hover:scale-105 transition-transform duration-350">
+              <svg className="w-5.5 h-5.5 stroke-[1.25] text-pink-550" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M12 2a3 3 0 0 1 3 3v2.17A7 7 0 0 1 21 14v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4a7 7 0 0 1 6-6.83V5a3 3 0 0 1 3-3z" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx="12" cy="14" r="1.5" />
+              </svg>
+            </div>
+            <span className="font-mono text-[9px] font-extrabold tracking-widest text-pink-600/90 uppercase leading-none">NO PICTURE</span>
+            <span className="text-[10px] text-slate-400 mt-1 max-w-[85%] truncate">{product.name}</span>
+          </div>
           
           {/* Subtle overlay helper on hover */}
           <div className="absolute inset-0 bg-slate-900/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">

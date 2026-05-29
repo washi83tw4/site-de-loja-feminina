@@ -101,12 +101,34 @@ export const ProductDetails: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
         
         {/* Left Side: Magnificent Full Image Card */}
-        <div className="lg:col-span-7 bg-slate-50/50 rounded-2xl overflow-hidden border border-slate-100 max-h-[640px] flex items-center justify-center">
-          <img
-            src={product.imageUrl}
-            alt={product.name}
-            className="w-full h-full object-cover aspect-[4/5] object-center max-h-[640px]"
-          />
+        <div className="lg:col-span-7 bg-slate-50/50 rounded-2xl overflow-hidden border border-slate-100 max-h-[640px] w-full flex items-center justify-center">
+          {product.imageUrl && product.imageUrl.trim() !== '' ? (
+            <img
+              src={product.imageUrl}
+              alt={product.name}
+              className="w-full h-full object-cover aspect-[4/5] object-center max-h-[640px]"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                const el = document.getElementById(`detail-placeholder-${product.id}`);
+                if (el) el.classList.remove('hidden');
+              }}
+            />
+          ) : null}
+
+          <div 
+            id={`detail-placeholder-${product.id}`}
+            className={`${product.imageUrl && product.imageUrl.trim() !== '' ? 'hidden w-full h-full' : 'w-full h-full min-h-[460px]'} bg-gradient-to-br from-rose-50/55 via-slate-50 to-pink-50/30 flex flex-col items-center justify-center p-8 text-center select-none aspect-[4/5]`}
+          >
+            {/* Elegant fashion hanger SVG */}
+            <div className="w-16 h-16 rounded-full bg-white border border-rose-100 flex items-center justify-center text-pink-500 shadow-md mb-4">
+              <svg className="w-8 h-8 stroke-[1.25] text-pink-550" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M12 2a3 3 0 0 1 3 3v2.17A7 7 0 0 1 21 14v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4a7 7 0 0 1 6-6.83V5a3 3 0 0 1 3-3z" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx="12" cy="14" r="2" />
+              </svg>
+            </div>
+            <span className="font-mono text-xs font-black tracking-widest text-pink-600 uppercase leading-none">PEÇA ATTIRE PREMIUM</span>
+            <span className="text-sm text-slate-400 mt-2 max-w-[70%]">{product.name}</span>
+          </div>
         </div>
 
         {/* Right Side: Information Matrix */}

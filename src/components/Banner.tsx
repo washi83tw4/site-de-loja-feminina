@@ -18,9 +18,9 @@ export const Banner: React.FC = () => {
     }
   };
 
-  // Filter products where active = true (active !== false) AND (banner = true OR onSale = true)
+  // Filter products where active = true (active !== false) AND banner = true
   const carouselProducts = products.filter(
-    p => p.active !== false && (p.banner === true || p.onSale === true)
+    p => p.active !== false && p.banner === true
   );
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -71,11 +71,49 @@ export const Banner: React.FC = () => {
 
   const currentGradient = themeGradients[currentIndex % themeGradients.length];
 
+  // Resolve background based on project specs: inline background, tailwind classes or default gradients
+  const activeProduct = carouselProducts[currentIndex];
+  const getBgConfig = () => {
+    if (!activeProduct) {
+      return { className: `bg-gradient-to-r ${currentGradient}`, style: {} };
+    }
+    
+    // Rule 3: Se banner_image existir, aplicar como background-image no container do banner
+    const bannerImage = activeProduct.bannerImage;
+    if (bannerImage && bannerImage.trim() !== '') {
+      return {
+        className: 'bg-cover bg-center bg-no-repeat',
+        style: { backgroundImage: `url(${bannerImage.trim()})` }
+      };
+    }
+    
+    // Rule 4: Se banner_image não existir, usar banner_bg ou gradiente como fundo
+    const bannerBg = activeProduct.bannerBg;
+    if (!bannerBg || bannerBg.trim() === '') {
+      return { className: `bg-gradient-to-r ${currentGradient}`, style: {} };
+    }
+    
+    const bannerBgTrimmed = bannerBg.trim();
+    // Detect typical tailwind classes
+    const isTailwind = /^(bg-|from-|via-|to-|linear-|grid-|flex-)/.test(bannerBgTrimmed) || bannerBgTrimmed.includes(' ');
+    if (isTailwind) {
+      if (bannerBgTrimmed.includes('from-') && !bannerBgTrimmed.includes('bg-')) {
+        return { className: `bg-gradient-to-r ${bannerBgTrimmed}`, style: {} };
+      }
+      return { className: bannerBgTrimmed, style: {} };
+    }
+    
+    // Standard color hex, rgb or valid single-string/gradient css statement
+    return { className: '', style: { background: bannerBgTrimmed } };
+  };
+
+  const bgConfig = getBgConfig();
+
   return (
     <div className="w-full">
       {/* Dynamic Banner Carousel or Fallback */}
       {carouselProducts.length > 0 ? (
-        <div className="relative overflow-hidden w-full mb-8 shadow-md rounded-lg bg-slate-950">
+        <div className="relative overflow-hidden w-full mb-8 shadow-sm bg-slate-950 border-b border-rose-100/5">
           <AnimatePresence mode="wait">
             <motion.div
               key={currentIndex}
@@ -83,87 +121,99 @@ export const Banner: React.FC = () => {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -40 }}
               transition={{ duration: 0.5, ease: "easeInOut" }}
-              className={`relative bg-gradient-to-r ${currentGradient} px-6 py-8 md:py-12 lg:px-8 grid grid-cols-1 md:grid-cols-12 gap-8 items-center`}
+              className={`relative px-6 py-8 md:py-12 ${bgConfig.className}`}
+              style={bgConfig.style}
             >
-              {/* Glamorous background decoration elements */}
-              <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full bg-rose-500/5 blur-3xl -translate-x-10 -translate-y-20 pointer-events-none"></div>
-              <div className="absolute bottom-0 left-0 w-[300px] h-[300px] rounded-full bg-slate-400/5 blur-2xl translate-x-10 translate-y-25 pointer-events-none"></div>
-              
-              {/* Left Side: Elegant dynamic headings */}
-              <div className="space-y-4 text-left md:col-span-8 z-20">
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white/10 backdrop-blur-md border border-white/10 rounded-full text-[9px] sm:text-xs font-mono font-bold text-rose-300 tracking-widest uppercase shadow-sm">
-                  <Sparkles className="w-3.5 h-3.5 text-rose-450 animate-pulse" />
-                  {carouselProducts[currentIndex].onSale ? 'SUPER OFERTA DA SEMANA • IMPERDÍVEL' : 'DESTAQUE EM ELEGÂNCIA • NOVIDADE'}
-                </div>
+              {/* Tint overlay to guarantee ultimate readability over any custom banner backdrops while keeping it light and vibrant */}
+              {activeProduct?.bannerImage && activeProduct.bannerImage.trim() !== '' && (
+                <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-black/15 to-transparent z-10 pointer-events-none" />
+              )}
+
+              {/* Tight, elegant, and centered content wrapper to pull elements together */}
+              <div className="max-w-5xl mx-auto w-full grid grid-cols-1 md:grid-cols-12 gap-8 items-center relative z-20">
+                {/* Glamorous background decoration elements */}
+                <div className="absolute top-0 right-0 w-[450px] h-[450px] rounded-full bg-rose-500/5 blur-3xl -translate-x-10 -translate-y-20 pointer-events-none"></div>
+                <div className="absolute bottom-0 left-0 w-[250px] h-[250px] rounded-full bg-slate-400/5 blur-2xl translate-x-10 translate-y-25 pointer-events-none"></div>
                 
-                <div className="space-y-1.5">
-                  <h1 className="text-3xl sm:text-4xl lg:text-5xl font-sans font-black tracking-tight text-white leading-tight">
-                    {carouselProducts[currentIndex].name}
-                  </h1>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-mono text-slate-300 uppercase tracking-widest bg-slate-800/60 px-2.5 py-0.5 rounded border border-slate-700">
-                      {getCategoryLabel(carouselProducts[currentIndex].category)}
-                    </span>
-                    
-                    {carouselProducts[currentIndex].onSale && (
-                      <span className="bg-rose-600 text-white font-mono text-[10px] font-bold px-2 py-0.5 rounded shadow-sm animate-pulse">
-                        OFERTA ESPECIAL
-                      </span>
-                    )}
+                {/* Left Side: Elegant dynamic headings */}
+                <div className="space-y-4 text-left md:col-span-7 z-20">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white/10 backdrop-blur-md border border-white/10 rounded-full text-[9px] sm:text-xs font-mono font-bold text-rose-300 tracking-widest uppercase shadow-sm">
+                    <Sparkles className="w-3.5 h-3.5 text-rose-450 animate-pulse" />
+                    {carouselProducts[currentIndex].onSale ? 'SUPER OFERTA DA SEMANA • IMPERDÍVEL' : 'DESTAQUE EM ELEGÂNCIA • NOVIDADE'}
                   </div>
-                </div>
-                
-                <p className="text-slate-300 max-w-2xl text-xs sm:text-sm font-normal leading-relaxed line-clamp-3">
-                  {carouselProducts[currentIndex].description}
-                </p>
-
-                <div className="flex flex-wrap items-center gap-5 pt-2">
-                  <button
-                    onClick={() => handleGoToProduct(carouselProducts[currentIndex].id)}
-                    className="inline-flex items-center gap-2 px-6 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-[11px] sm:text-xs uppercase tracking-wider rounded-md active:scale-98 transition-all duration-200 shadow-md shadow-rose-950/20 cursor-pointer"
-                  >
-                    Ver Detalhes do Produto
-                    <ArrowRight className="w-3.5 h-3.5 text-white" />
-                  </button>
-
-                  <div className="flex flex-col text-left">
-                    <span className="font-mono text-[9px] text-slate-450 uppercase tracking-wider leading-none">Preço Exclusivo</span>
-                    <div className="flex items-baseline gap-2 mt-1">
-                      {carouselProducts[currentIndex].onSale && carouselProducts[currentIndex].promotionalPrice !== undefined ? (
-                        <>
-                          <span className="font-sans font-black text-rose-400 text-xl sm:text-2xl leading-none">
-                            R$ {carouselProducts[currentIndex].promotionalPrice.toFixed(2).replace('.', ',')}
-                          </span>
-                          <span className="font-sans font-medium text-slate-500 text-xs sm:text-sm line-through leading-none">
-                            R$ {carouselProducts[currentIndex].price.toFixed(2).replace('.', ',')}
-                          </span>
-                        </>
-                      ) : (
-                        <span className="font-sans font-black text-white text-xl sm:text-2xl leading-none">
-                          R$ {carouselProducts[currentIndex].price.toFixed(2).replace('.', ',')}
+                  
+                  <div className="space-y-1.5">
+                    <h1 className="text-3xl sm:text-4xl lg:text-5xl font-sans font-black tracking-tight text-white leading-tight">
+                      {carouselProducts[currentIndex].name}
+                    </h1>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-mono text-slate-300 uppercase tracking-widest bg-slate-800/60 px-2.5 py-0.5 rounded border border-slate-700">
+                        {getCategoryLabel(carouselProducts[currentIndex].category)}
+                      </span>
+                      
+                      {carouselProducts[currentIndex].onSale && (
+                        <span className="bg-rose-600 text-white font-mono text-[10px] font-bold px-2 py-0.5 rounded shadow-sm animate-pulse">
+                          OFERTA ESPECIAL
                         </span>
                       )}
                     </div>
                   </div>
-                </div>
-              </div>
+                  
+                  <p className="text-slate-300 max-w-xl text-xs sm:text-sm font-normal leading-relaxed line-clamp-3 font-sans">
+                    {carouselProducts[currentIndex].description}
+                  </p>
 
-              {/* Right Side: Portrait Image View with nice badges */}
-              <div 
-                onClick={() => handleGoToProduct(carouselProducts[currentIndex].id)}
-                className="relative md:col-span-4 h-[220px] sm:h-[260px] rounded-lg overflow-hidden group shadow-xl border border-white/10 cursor-pointer z-20"
-              >
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent z-10 pointer-events-none"></div>
-                
-                <img
-                  src={carouselProducts[currentIndex].imageUrl}
-                  alt={carouselProducts[currentIndex].name}
-                  className="w-full h-full object-cover transform scale-102 group-hover:scale-105 duration-700 transition-transform"
-                />
-                
-                <div className="absolute bottom-4 left-4 z-20 text-left">
-                  <div className="font-mono text-[9px] text-rose-400 tracking-wider uppercase font-bold">DESTAQUE PREMIUM</div>
-                  <div className="text-sm font-sans font-extrabold text-white mt-0.5 line-clamp-1">{carouselProducts[currentIndex].name}</div>
+                  <div className="flex flex-wrap items-center gap-5 pt-2">
+                    <button
+                      onClick={() => handleGoToProduct(carouselProducts[currentIndex].id)}
+                      className="inline-flex items-center gap-2 px-6 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-[11px] sm:text-xs uppercase tracking-wider rounded-md active:scale-98 transition-all duration-200 shadow-md shadow-rose-950/20 cursor-pointer"
+                    >
+                      Ver Detalhes do Produto
+                      <ArrowRight className="w-3.5 h-3.5 text-white" />
+                    </button>
+
+                    <div className="flex flex-col text-left bg-black/35 backdrop-blur-[2px] px-3.5 py-2 rounded-lg border border-white/10 shadow-lg">
+                      <span className="font-mono text-[9px] text-pink-200 font-extrabold uppercase tracking-widest leading-none">
+                        Preço Exclusivo
+                      </span>
+                      <div className="flex items-baseline gap-2 mt-1.5">
+                        {carouselProducts[currentIndex].onSale && carouselProducts[currentIndex].promotionalPrice !== undefined ? (
+                          <>
+                            <span className="font-sans font-black text-rose-400 text-xl sm:text-2xl leading-none">
+                              R$ {carouselProducts[currentIndex].promotionalPrice.toFixed(2).replace('.', ',')}
+                            </span>
+                            <span className="font-sans font-medium text-slate-300 text-xs sm:text-sm line-through leading-none opacity-80">
+                              R$ {carouselProducts[currentIndex].price.toFixed(2).replace('.', ',')}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="font-sans font-black text-white text-xl sm:text-2xl leading-none">
+                            R$ {carouselProducts[currentIndex].price.toFixed(2).replace('.', ',')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Side: Portrait Image View with nice badges */}
+                <div 
+                  onClick={() => handleGoToProduct(carouselProducts[currentIndex].id)}
+                  className="relative md:col-span-5 h-[220px] sm:h-[260px] rounded-none overflow-hidden group shadow-xl border border-white/10 cursor-pointer z-20 justify-self-center md:justify-self-end w-full max-w-[360px]"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/35 via-transparent to-transparent z-10 pointer-events-none"></div>
+                  
+                  {/* Rule 6: Show product.imagem || product.imageUrl in product card, never bannerImage */}
+                  <img
+                    src={carouselProducts[currentIndex].imageUrl}
+                    alt={carouselProducts[currentIndex].name}
+                    className="w-full h-full object-cover transform scale-102 group-hover:scale-105 duration-700 transition-transform"
+                  />
+                  
+                  <div className="absolute bottom-4 left-4 z-20 text-left">
+                    <div className="font-mono text-[9px] text-rose-400 tracking-wider uppercase font-bold">DESTAQUE PREMIUM</div>
+                    <div className="text-sm font-sans font-extrabold text-white mt-0.5 line-clamp-1">{carouselProducts[currentIndex].name}</div>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -189,15 +239,15 @@ export const Banner: React.FC = () => {
         </div>
       ) : (
         /* Immersive Barbie-themed Fallback Banner - Full Bleed and Slimmer design */
-        <div className="relative overflow-hidden bg-gradient-to-r from-pink-550 via-rose-900 to-purple-950 w-full mb-8 shadow-md rounded-lg">
+        <div className="relative overflow-hidden bg-gradient-to-r from-pink-550 via-rose-900 to-purple-950 w-full mb-8 shadow-sm border-b border-rose-100/5">
           {/* Glamorous background decoration elements */}
           <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full bg-white/5 blur-3xl -translate-x-10 -translate-y-20 animate-pulse duration-5000"></div>
           <div className="absolute bottom-0 left-0 w-[300px] h-[300px] rounded-full bg-pink-300/5 blur-2xl translate-x-10 translate-y-25"></div>
 
-          <div className="relative max-w-7xl mx-auto px-6 py-8 md:py-12 lg:px-8 grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+          <div className="relative max-w-5xl mx-auto px-6 py-8 md:py-12 grid grid-cols-1 md:grid-cols-12 gap-8 items-center z-20">
             
             {/* Left Side: Elegant headings */}
-            <div className="space-y-4 text-left md:col-span-8 z-20">
+            <div className="space-y-4 text-left md:col-span-7 z-20">
               <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-[9px] sm:text-xs font-mono font-bold text-white tracking-widest uppercase shadow-sm">
                 <Sparkles className="w-3 h-3 text-pink-200 animate-pulse" />
                 COLEÇÃO EXCLUSIVA • BARBIE GIRL
@@ -212,7 +262,7 @@ export const Banner: React.FC = () => {
                 </p>
               </div>
               
-              <p className="text-rose-50 max-w-md text-xs sm:text-sm font-normal leading-relaxed">
+              <p className="text-rose-50 max-w-xl text-xs sm:text-sm font-normal leading-relaxed">
                 Inspirado na sofisticação contemporânea com pinceladas vibrantes de rosa e acabamentos impecáveis de design de luxo. Vista o seu melhor style.
               </p>
 
@@ -233,7 +283,7 @@ export const Banner: React.FC = () => {
             </div>
 
             {/* Right Side: Slimmer Portrait Visual and Rotating Seal */}
-            <div className="relative md:col-span-4 h-[180px] sm:h-[240px] md:h-[260px] rounded-lg overflow-hidden group shadow-lg border-2 border-white/15">
+            <div className="relative md:col-span-5 h-[180px] sm:h-[240px] md:h-[260px] rounded-none overflow-hidden group shadow-lg border-2 border-white/15 justify-self-center md:justify-self-end w-full max-w-[360px]">
               <div className="absolute inset-0 bg-gradient-to-t from-pink-950/50 via-transparent to-transparent z-10 pointer-events-none"></div>
               
               <img

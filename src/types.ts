@@ -14,6 +14,8 @@ export interface Product {
   banner?: boolean;
   active?: boolean;
   imageUrl: string;
+  bannerImage?: string;
+  bannerBg?: string;
   category: string;
   sizes: string[];
   colors?: string[];

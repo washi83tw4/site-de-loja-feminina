@@ -296,12 +296,27 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
                   {cart.map((item) => (
                     <div key={item.id} className="py-4 flex gap-4 items-start" id={`cart-item-${item.id}`}>
                       {/* Item Image */}
-                      <div className="w-20 h-24 bg-slate-50 border border-slate-100 rounded-lg overflow-hidden shrink-0">
-                        <img 
-                          src={item.product.imageUrl} 
-                          alt={item.product.name} 
-                          className="w-full h-full object-cover"
-                        />
+                      <div className="w-20 h-24 bg-slate-50 border border-slate-100 rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
+                        {item.product.imageUrl && item.product.imageUrl.trim() !== '' ? (
+                          <img 
+                            src={item.product.imageUrl} 
+                            alt={item.product.name} 
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              const el = document.getElementById(`cart-placeholder-${item.id}`);
+                              if (el) el.classList.remove('hidden');
+                            }}
+                          />
+                        ) : null}
+                        
+                        <div 
+                          id={`cart-placeholder-${item.id}`}
+                          className={`${item.product.imageUrl && item.product.imageUrl.trim() !== '' ? 'hidden' : 'w-full h-full'} bg-gradient-to-br from-rose-50 to-slate-50 flex flex-col items-center justify-center text-center p-1 w-full h-full`}
+                        >
+                          <span className="font-mono text-[7px] font-black text-rose-500 uppercase tracking-widest leading-none">ATTIRE</span>
+                          <span className="text-[7px] text-slate-400 mt-1 uppercase scale-90">ITEM</span>
+                        </div>
                       </div>
 
                       {/* Details Content */}

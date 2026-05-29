@@ -7,7 +7,7 @@ import React, { useState } from 'react';
 import { StoreProvider, useStore } from './context/StoreContext';
 import { Header } from './components/Header';
 import { Banner } from './components/Banner';
-import { CategoryList } from './components/CategoryList';
+import { CatalogSection } from './components/CatalogSection';
 import { ProductCard } from './components/ProductCard';
 import { ProductDetails } from './components/ProductDetails';
 import { OrdersHistory } from './components/OrdersHistory';
@@ -76,49 +76,8 @@ function StoreShell() {
             {/* Destaques da Loja Section */}
             <FeaturedProducts />
 
-            {/* Category Navigation */}
-            <CategoryList />
-
-            {/* Products catalog listing */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-              {isLoadingProducts ? (
-                <div className="h-64 flex flex-col items-center justify-center space-y-3">
-                  <Loader2 className="w-8 h-8 text-rose-600 animate-spin" />
-                  <p className="text-sm font-semibold tracking-wide text-slate-500 font-mono uppercase">
-                    Buscando peças no Supabase...
-                  </p>
-                </div>
-              ) : filteredProducts.length === 0 ? (
-                <div className="bg-white border border-slate-100 rounded-lg py-16 px-4 text-center max-w-md mx-auto space-y-4">
-                  <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 mx-auto">
-                    <Eye className="w-6 h-6 text-rose-500" />
-                  </div>
-                  <div>
-                    <h3 className="font-sans font-bold text-slate-800">Sem resultados para sua busca</h3>
-                    <p className="text-xs text-slate-400 mt-1">
-                      Tente alterar a categoria ou o termo digitado na caixa de busca.
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setSelectedCategory('all');
-                      setSearchQuery('');
-                    }}
-                    className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold cursor-pointer transition-all active:scale-95"
-                  >
-                    Resetar Filtros
-                  </button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 sm:gap-8">
-                  {filteredProducts.map((product) => (
-                    <div key={product.id} className="animate-fade-in">
-                      <ProductCard product={product} />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            {/* Beautiful Catalog Section with Sidebar Categories and Filters */}
+            <CatalogSection />
           </div>
         ) : currentView === 'product-detail' ? (
           <ProductDetails />
