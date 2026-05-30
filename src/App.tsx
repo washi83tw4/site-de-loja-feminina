@@ -34,35 +34,69 @@ function StoreShell() {
     const pathname = window.location.pathname;
     const params = new URLSearchParams(window.location.search);
     const payment = params.get('payment');
+    const mpStatus = params.get('status') || params.get('collection_status');
     const orderId = params.get('orderId') || params.get('external_reference');
 
-    if (pathname.includes('/pagamento/sucesso') || payment === 'success') {
+    // 4. Mostrar no console os dados retornados pelo Mercado Pago
+    console.log("=== DETECÇÃO DE RETORNO DO MERCADO PAGO ===");
+    console.log("Pathname atual:", pathname);
+    console.log("Query parameters brutos:", window.location.search);
+    console.log("Parâmetros decodificados:", Object.fromEntries(params.entries()));
+    console.log("orderId / external_reference extraído:", orderId);
+    console.log("payment extraído:", payment);
+    console.log("mpStatus / collection_status extraído:", mpStatus);
+    console.log("==========================================");
+
+    if (
+      pathname.includes('/pagamento/sucesso') || 
+      payment === 'success' || 
+      mpStatus === 'approved' || 
+      mpStatus === 'authorized'
+    ) {
       setPaymentStatus('success');
       setPaymentOrderId(orderId);
       if (orderId) {
+        console.log(`[Mercado Pago] Pagamento APROVADO detectado para o pedido #${orderId}. Atualizando status para "Pago" e atualizando estoque.`);
         updateOrderStatus(orderId, 'Pago');
       }
       window.history.replaceState({}, document.title, '/');
-    } else if (pathname.includes('/pagamento/erro') || payment === 'failure') {
+    } else if (
+      pathname.includes('/pagamento/erro') || 
+      payment === 'failure' || 
+      mpStatus === 'rejected' || 
+      mpStatus === 'cancelled' || 
+      mpStatus === 'refunded' || 
+      mpStatus === 'charged_back'
+    ) {
       setPaymentStatus('failure');
       setPaymentOrderId(orderId);
       if (orderId) {
+        console.log(`[Mercado Pago] Pagamento REJEITADO/CANCELADO detectado para o pedido #${orderId}. Atualizando status para "Cancelado".`);
         updateOrderStatus(orderId, 'Cancelado');
       }
       window.history.replaceState({}, document.title, '/');
-    } else if (pathname.includes('/pagamento/pendent') || pathname.includes('/pagamento/pendente') || payment === 'pending') {
+    } else if (
+      pathname.includes('/pagamento/pendent') || 
+      pathname.includes('/pagamento/pendente') || 
+      payment === 'pending' || 
+      mpStatus === 'pending' || 
+      mpStatus === 'in_process' ||
+      mpStatus === 'in_mediation'
+    ) {
       setPaymentStatus('pending');
       setPaymentOrderId(orderId);
       if (orderId) {
+        console.log(`[Mercado Pago] Pagamento PENDENTE/EM ANÁLISE detectado para o pedido #${orderId}. Atualizando status para "Pendente".`);
         updateOrderStatus(orderId, 'Pendente');
       }
       window.history.replaceState({}, document.title, '/');
     } else if (payment === 'success' || payment === 'failure' || payment === 'pending') {
+      const mapped = payment === 'success' ? 'Pago' : (payment === 'failure' ? 'Cancelado' : 'Pendente');
       setPaymentStatus(payment as any);
       setPaymentOrderId(orderId);
       if (orderId) {
-        const mappedStatus = payment === 'success' ? 'Pago' : (payment === 'failure' ? 'Cancelado' : 'Pendente');
-        updateOrderStatus(orderId, mappedStatus);
+        console.log(`[Mercado Pago] Mapeando status de query string alternativo para o pedido #${orderId} -> "${mapped}".`);
+        updateOrderStatus(orderId, mapped);
       }
       window.history.replaceState({}, document.title, '/');
     }

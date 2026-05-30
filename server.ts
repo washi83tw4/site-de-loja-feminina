@@ -1,6 +1,7 @@
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
+import { createClient } from "@supabase/supabase-js";
 
 const MP_ACCESS_TOKEN = process.env.MERCADO_PAGO_ACCESS_TOKEN || "APP_USR-8998561393081066-052822-18438df5268019cb403d9aa53c2d96b1-354409374";
 
@@ -206,6 +207,167 @@ async function startServer() {
       return res.status(500).json({ error: "Internal Server Error", message: e.message });
     }
   });
+
+  // Mercado Pago webhook notifications endpoint
+  const handleWebhook = async (req: express.Request, res: express.Response) => {
+    try {
+      const body = req.body;
+      console.log("[Webhook - Server] Received webhook payload:", JSON.stringify(body));
+
+      let paymentId = "";
+      if (body) {
+        if (body.type === "payment" && body.data && body.data.id) {
+          paymentId = String(body.data.id);
+        } else if (body.topic === "payment" && body.id) {
+          paymentId = String(body.id);
+        } else if (body.resource) {
+          const parts = body.resource.split("/");
+          paymentId = parts[parts.length - 1];
+        }
+      }
+
+      if (!paymentId && req.query && req.query.id) {
+        paymentId = String(req.query.id);
+      }
+
+      if (!paymentId) {
+        console.log("[Webhook - Server] No payment ID specified in payload.");
+        return res.status(200).json({ received: true, message: "No payment ID found" });
+      }
+
+      console.log(`[Webhook - Server] Fetching payment status details for: ${paymentId}`);
+
+      const BACKEND_MERCADOPAGO_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN || process.env.MERCADO_PAGO_ACCESS_TOKEN || "APP_USR-8998561393081066-052822-18438df5268019cb403d9aa53c2d96b1-354409374";
+
+      const mpResponse = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+         headers: {
+           Authorization: `Bearer ${BACKEND_MERCADOPAGO_TOKEN}`,
+         },
+      });
+
+      if (!mpResponse.ok) {
+        const errTxt = await mpResponse.text();
+        console.error(`[Webhook - Server] Failed to query Mercado Pago details for ${paymentId}:`, errTxt);
+        return res.status(200).json({ error: "Failed to fetch details", details: errTxt });
+      }
+
+      const paymentData = await mpResponse.json();
+      console.log("[Webhook - Server] Payment details successfully matched:", JSON.stringify(paymentData));
+
+      const status = paymentData.status;
+      const orderId = paymentData.external_reference;
+
+      console.log(`[Webhook - Server] Payment Status: "${status}", Order ID (external_reference): "${orderId}"`);
+
+      if (orderId && status === "approved") {
+        const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://ginrupwmrdoilkybsgsz.supabase.co';
+        const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_S3snboPa4Q0v1xVbd4FRtg_EtaORtBc';
+        const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+        const queryId = isNaN(Number(orderId)) ? orderId : Number(orderId);
+
+        // Fetch Order
+        const { data: dbOrder, error: orderErr } = await supabase
+          .from("orders")
+          .select("*")
+          .eq("id", queryId)
+          .single();
+
+        if (orderErr) {
+          console.error(`[Webhook - Server] Failed to fetch order ${queryId}:`, orderErr);
+        } else if (dbOrder) {
+          const alreadyBaixado = dbOrder.estoque_baixado === true;
+
+          if (!alreadyBaixado) {
+            console.log(`[Webhook - Server] Updating order #${queryId} to 'Pago' and lowering stock...`);
+            const items = typeof dbOrder.items === "string" ? JSON.parse(dbOrder.items) : (dbOrder.items || []);
+
+            for (const item of items) {
+              const productId = item.productId;
+              const size = item.selectedSize;
+              const qty = item.quantity || 1;
+
+              const { data: dbProduct } = await supabase
+                .from("produtos")
+                .select("*")
+                .eq("id", productId)
+                .single();
+
+              if (dbProduct) {
+                const currentTotalStock = dbProduct.estoque || 0;
+                const newTotalStock = Math.max(0, currentTotalStock - qty);
+
+                let tamanhosEstoque = dbProduct.tamanhos_estoque;
+                if (typeof tamanhosEstoque === "string") {
+                  try {
+                    tamanhosEstoque = JSON.parse(tamanhosEstoque);
+                  } catch {
+                    tamanhosEstoque = {};
+                  }
+                }
+                tamanhosEstoque = tamanhosEstoque || {};
+
+                if (size && size in tamanhosEstoque) {
+                  tamanhosEstoque[size] = Math.max(0, (tamanhosEstoque[size] || 0) - qty);
+                }
+
+                // Persist new stock figures
+                const { error: updateProdErr } = await supabase
+                  .from("produtos")
+                  .update({
+                    estoque: newTotalStock,
+                    tamanhos_estoque: tamanhosEstoque,
+                  })
+                  .eq("id", productId);
+
+                if (updateProdErr) {
+                  console.error(`[Webhook - Server] Failed to decrease product ${productId} stock:`, updateProdErr);
+                } else {
+                  console.log(`[Webhook - Server] Stock successfully reduced for product ${productId}`);
+                }
+              }
+            }
+
+            // Mark order as Pago & estoque_baixado = true
+            const { error: updateOrderErr } = await supabase
+              .from("orders")
+              .update({
+                status: "Pago",
+                estoque_baixado: true,
+              })
+              .eq("id", queryId);
+
+            if (updateOrderErr) {
+              console.error(`[Webhook - Server] Failed to mark order ${queryId} as 'Pago':`, updateOrderErr);
+            } else {
+              console.log(`[Webhook - Server] Order ${queryId} status set to 'Pago'.`);
+            }
+          } else {
+            // Already lowered stock but maybe order status is out of sync
+            if (dbOrder.status !== "Pago") {
+              await supabase
+                .from("orders")
+                .update({ status: "Pago" })
+                .eq("id", queryId);
+              console.log(`[Webhook - Server] status corrected to 'Pago' on order ${queryId}.`);
+            } else {
+              console.log(`[Webhook - Server] Order ${queryId} already Pago.`);
+            }
+          }
+        } else {
+          console.warn(`[Webhook - Server] Order ${queryId} not found.`);
+        }
+      }
+
+      return res.status(200).json({ success: true, paymentId, orderId, status });
+    } catch (error: any) {
+      console.error("[Webhook - Server] Route Error Handler:", error);
+      return res.status(200).json({ error: "Internal Error Handler", message: error.message });
+    }
+  };
+
+  app.post("/api/webhook", handleWebhook);
+  app.post("/api/mercado-pago/webhook", handleWebhook);
 
   // Health check
   app.get("/api/health", (req, res) => {
