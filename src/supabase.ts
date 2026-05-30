@@ -352,7 +352,8 @@ export async function createOrder(order: Order): Promise<string> {
         notes: order.notes || '',
         items: order.items,
         total: order.total,
-        status: order.status || 'novo'
+        status: order.status || 'novo',
+        estoque_baixado: false
       }])
       .select('id')
       .single();
@@ -413,6 +414,7 @@ export async function getOrdersForUser(userId: string, email?: string): Promise<
       items: typeof dbOrder.items === 'string' ? JSON.parse(dbOrder.items) : (dbOrder.items || []),
       total: Number(dbOrder.total || 0),
       status: dbOrder.status || 'novo',
+      estoque_baixado: dbOrder.estoque_baixado === true,
       createdAt: dbOrder.created_at || new Date().toISOString()
     }));
   } catch (error) {
@@ -432,7 +434,35 @@ export async function updateOrderStatus(orderId: string, status: string): Promis
     const localOrders = localStorage.getItem('clothes_orders');
     if (localOrders) {
       const list: Order[] = JSON.parse(localOrders);
-      const updatedList = list.map(o => o.id === orderId ? { ...o, status } : o);
+      const updatedList = list.map(o => {
+        if (o.id === orderId) {
+          if (status === 'Pago') {
+            const alreadyBaixado = o.estoque_baixado === true;
+            if (!alreadyBaixado) {
+              // decrease stock of products locally
+              const localProducts = localStorage.getItem('clothes_products');
+              if (localProducts) {
+                let productsList: Product[] = JSON.parse(localProducts);
+                o.items.forEach(item => {
+                  const prodIndex = productsList.findIndex(p => p.id === item.productId);
+                  if (prodIndex > -1) {
+                    const prod = productsList[prodIndex];
+                    const newStock = Math.max(0, (prod.stock || 0) - item.quantity);
+                    productsList[prodIndex] = {
+                      ...prod,
+                      stock: newStock
+                    };
+                  }
+                });
+                localStorage.setItem('clothes_products', JSON.stringify(productsList));
+              }
+              return { ...o, status, estoque_baixado: true };
+            }
+          }
+          return { ...o, status };
+        }
+        return o;
+      });
       localStorage.setItem('clothes_orders', JSON.stringify(updatedList));
     }
     return;
@@ -440,18 +470,129 @@ export async function updateOrderStatus(orderId: string, status: string): Promis
 
   try {
     const queryId = isNaN(Number(orderId)) ? orderId : Number(orderId);
-    const { error } = await supabase!
-      .from('orders')
-      .update({ status })
-      .eq('id', queryId);
 
-    if (error) throw error;
+    // If status is 'Pago', trigger stock decrement if not already done
+    if (status === 'Pago') {
+      // 1. Fetch order
+      const { data: dbOrder, error: fetchErr } = await supabase!
+        .from('orders')
+        .select('*')
+        .eq('id', queryId)
+        .single();
+
+      if (fetchErr) throw fetchErr;
+
+      if (dbOrder && !dbOrder.estoque_baixado) {
+        // 2. Loop through each item
+        const items = typeof dbOrder.items === 'string' ? JSON.parse(dbOrder.items) : (dbOrder.items || []);
+        for (const item of items) {
+          const productId = item.productId;
+          const size = item.selectedSize;
+          const qty = item.quantity || 1;
+
+          // 3. Fetch product
+          const { data: dbProduct, error: prodErr } = await supabase!
+            .from('produtos')
+            .select('*')
+            .eq('id', productId)
+            .single();
+
+          if (dbProduct) {
+            const currentTotalStock = dbProduct.estoque || 0;
+            const newTotalStock = Math.max(0, currentTotalStock - qty);
+
+            let tamanhosEstoque = dbProduct.tamanhos_estoque;
+            if (typeof tamanhosEstoque === 'string') {
+              try {
+                tamanhosEstoque = JSON.parse(tamanhosEstoque);
+              } catch {
+                tamanhosEstoque = {};
+              }
+            }
+            tamanhosEstoque = tamanhosEstoque || {};
+
+            if (size && size in tamanhosEstoque) {
+              tamanhosEstoque[size] = Math.max(0, (tamanhosEstoque[size] || 0) - qty);
+            }
+
+            // 4. Update product
+            const { error: updateProdErr } = await supabase!
+              .from('produtos')
+              .update({
+                estoque: newTotalStock,
+                tamanhos_estoque: tamanhosEstoque
+              })
+              .eq('id', productId);
+
+            if (updateProdErr) {
+              console.warn(`Failed to update product stock for ${productId}:`, updateProdErr);
+            }
+          }
+        }
+
+        // 5. Update order to Pago with estoque_baixado = true
+        const { error: updateOrderErr } = await supabase!
+          .from('orders')
+          .update({
+            status: 'Pago',
+            estoque_baixado: true
+          })
+          .eq('id', queryId);
+
+        if (updateOrderErr) throw updateOrderErr;
+      } else {
+        // Already updated stock or didn't find order. Just update status.
+        const { error: updateOrderErr } = await supabase!
+          .from('orders')
+          .update({ status })
+          .eq('id', queryId);
+
+        if (updateOrderErr) throw updateOrderErr;
+      }
+    } else {
+      // For other statuses, just update ordinarily
+      const { error: updateOrderErr } = await supabase!
+        .from('orders')
+        .update({ status })
+        .eq('id', queryId);
+
+      if (updateOrderErr) throw updateOrderErr;
+    }
   } catch (error) {
-    console.warn("Failed to update order status in Supabase. Updating local fallback.", error);
+    console.warn("Failed to update order status or decrease stock in Supabase. Updating local fallback.", error);
+    // Local storage fallback
     const localOrders = localStorage.getItem('clothes_orders');
     if (localOrders) {
       const list: Order[] = JSON.parse(localOrders);
-      const updatedList = list.map(o => o.id === orderId ? { ...o, status } : o);
+      const updatedList = list.map(o => {
+        if (o.id === orderId) {
+          if (status === 'Pago') {
+            const alreadyBaixado = o.estoque_baixado === true;
+            if (!alreadyBaixado) {
+              // decrease stock of products locally
+              const localProducts = localStorage.getItem('clothes_products');
+              if (localProducts) {
+                let productsList: Product[] = JSON.parse(localProducts);
+                o.items.forEach(item => {
+                  const prodIndex = productsList.findIndex(p => p.id === item.productId);
+                  if (prodIndex > -1) {
+                    const prod = productsList[prodIndex];
+                    const newStock = Math.max(0, (prod.stock || 0) - item.quantity);
+                    productsList[prodIndex] = {
+                      ...prod,
+                      stock: newStock
+                    };
+                  }
+                });
+                localStorage.setItem('clothes_products', JSON.stringify(productsList));
+              }
+              return { ...o, status, estoque_baixado: true };
+            }
+          }
+          return { ...o, status };
+        }
+        return o;
+      });
       localStorage.setItem('clothes_orders', JSON.stringify(updatedList));
     }
   }

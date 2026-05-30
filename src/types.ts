@@ -66,6 +66,7 @@ export interface Order {
   total: number;
   status: string;
   createdAt: string;
+  estoque_baixado?: boolean;
 }
 
 export enum OperationType {
