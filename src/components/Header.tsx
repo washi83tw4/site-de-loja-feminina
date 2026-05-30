@@ -66,6 +66,14 @@ export const Header: React.FC<HeaderProps> = ({ onToggleCart }) => {
 
   return (
     <div className="w-full">
+      {/* Portfolio / Demo Notice Bar */}
+      <div className="bg-slate-950 text-slate-200 py-1.5 px-3 border-b border-rose-100/10 text-center select-none flex items-center justify-center gap-2 text-[10px] sm:text-xs tracking-wide">
+        <span className="w-2 h-2 rounded-full bg-pink-500 animate-pulse shrink-0"></span>
+        <span className="font-sans text-slate-300">
+          <strong>Site demonstrativo para Portfólio:</strong> Todas as transações com Pix e cartões neste e-commerce são para simulação de fluxo real com Mercado Pago e Supabase.
+        </span>
+      </div>
+
       {/* Premium Pink Top Ribbon Bar (Inspired by the reference design) */}
       <div className="bg-gradient-to-r from-rose-500 via-pink-500 to-rose-400 text-white font-semibold text-[9px] xs:text-[10px] sm:text-xs py-2 px-2 sm:px-4 shadow-inner text-center select-none flex items-center justify-center flex-wrap gap-1 md:gap-1.5 leading-relaxed overflow-hidden">
         <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 animate-bounce shrink-0 text-pink-100" />
