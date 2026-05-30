@@ -200,6 +200,21 @@ function mapDBProdutoToProduct(db: any): Product {
     sizes = ['P', 'M', 'G', 'GG'];
   }
 
+  let tamanhosEstoque = db.tamanhos_estoque;
+  if (typeof tamanhosEstoque === 'string') {
+    try {
+      tamanhosEstoque = JSON.parse(tamanhosEstoque);
+    } catch {
+      tamanhosEstoque = null;
+    }
+  }
+  if (!tamanhosEstoque) {
+    tamanhosEstoque = {};
+    sizes.forEach((s: string) => {
+      tamanhosEstoque[s] = Math.ceil((db.estoque || 10) / sizes.length);
+    });
+  }
+
   return {
     id: db.id,
     name: db.nome || '',
@@ -216,6 +231,7 @@ function mapDBProdutoToProduct(db: any): Product {
     category: db.categoria || 'all',
     sizes: sizes,
     stock: db.estoque || 0,
+    tamanhos_estoque: tamanhosEstoque,
     createdAt: db.created_at || new Date().toISOString()
   };
 }
@@ -275,9 +291,22 @@ export async function validateSupabaseConnection() {
  * Fetch all clothing products
  */
 export async function getProducts(): Promise<Product[]> {
+  const mapLocalProduct = (p: Product): Product => {
+    if (!p.tamanhos_estoque) {
+      const fallbackStock: Record<string, number> = {};
+      const sizesArray = p.sizes && p.sizes.length > 0 ? p.sizes : ['P', 'M', 'G', 'GG'];
+      sizesArray.forEach(s => {
+        fallbackStock[s] = Math.ceil((p.stock || 12) / sizesArray.length);
+      });
+      return { ...p, sizes: sizesArray, tamanhos_estoque: fallbackStock };
+    }
+    return p;
+  };
+
   if (isDemoMode || useFallbackDemoMode) {
     const listJson = localStorage.getItem('clothes_products');
-    return listJson ? JSON.parse(listJson) : MOCK_PRODUCTS;
+    const rawList: Product[] = listJson ? JSON.parse(listJson) : MOCK_PRODUCTS;
+    return rawList.map(mapLocalProduct);
   }
 
   try {
@@ -308,15 +337,16 @@ export async function getProducts(): Promise<Product[]> {
           seeded.push(mapDBProdutoToProduct(inserted));
         }
       }
-      return seeded.length > 0 ? seeded : MOCK_PRODUCTS;
+      return seeded.length > 0 ? seeded.map(mapLocalProduct) : MOCK_PRODUCTS.map(mapLocalProduct);
     }
 
-    return data.map(mapDBProdutoToProduct);
+    return data.map(mapDBProdutoToProduct).map(mapLocalProduct);
   } catch (error) {
     console.warn("Products load failed with Supabase connection. Falling back to local/demo offline mode.", error);
     useFallbackDemoMode = true;
     const listJson = localStorage.getItem('clothes_products');
-    return listJson ? JSON.parse(listJson) : MOCK_PRODUCTS;
+    const rawList: Product[] = listJson ? JSON.parse(listJson) : MOCK_PRODUCTS;
+    return rawList.map(mapLocalProduct);
   }
 }
 

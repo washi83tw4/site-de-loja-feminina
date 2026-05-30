@@ -58,12 +58,30 @@ export const ProductDetails: React.FC = () => {
   const [errorText, setErrorText] = useState<string>('');
   const [isAdded, setIsAdded] = useState<boolean>(false);
 
+  const selectedSizeStock = selectedSize
+    ? (product.tamanhos_estoque?.[selectedSize] !== undefined
+        ? product.tamanhos_estoque[selectedSize]
+        : (product.stock || 0))
+    : null;
+
+  const isSelectedSizeOutOfStock = selectedSizeStock !== null && selectedSizeStock <= 0;
+
   const handleDecrease = () => {
-    if (quantity > 1) setQuantity(quantity - 1);
+    if (quantity > 1) {
+      setQuantity(quantity - 1);
+      setErrorText('');
+    }
   };
 
   const handleIncrease = () => {
+    if (selectedSize) {
+      if (quantity >= (selectedSizeStock ?? 999)) {
+        setErrorText(`Estoque insuficiente para este tamanho. Disponível: ${selectedSizeStock} unidades.`);
+        return;
+      }
+    }
     setQuantity(quantity + 1);
+    setErrorText('');
   };
 
   const handleAddToCart = () => {
@@ -71,14 +89,21 @@ export const ProductDetails: React.FC = () => {
       setErrorText('Por favor, selecione um tamanho antes de adicionar.');
       return;
     }
-    setErrorText('');
-    addToCart(product, selectedSize, selectedColor || undefined, quantity);
+    if (isSelectedSizeOutOfStock) {
+      setErrorText('Tamanho indisponível sem estoque.');
+      return;
+    }
 
-    // Trigger visual absolute added badge
-    setIsAdded(true);
-    setTimeout(() => {
-      setIsAdded(false);
-    }, 2500);
+    setErrorText('');
+    const success = addToCart(product, selectedSize, selectedColor || undefined, quantity);
+
+    if (success !== false) {
+      // Trigger visual absolute added badge
+      setIsAdded(true);
+      setTimeout(() => {
+        setIsAdded(false);
+      }, 2500);
+    }
   };
 
   const handleBackToHome = () => {
@@ -207,20 +232,36 @@ export const ProductDetails: React.FC = () => {
             <div className="flex flex-wrap gap-2">
               {product.sizes.map((size) => {
                 const isSizeActive = selectedSize === size;
+                const sizeStock = product.tamanhos_estoque?.[size] !== undefined 
+                  ? product.tamanhos_estoque[size] 
+                  : (product.stock || 0);
+                const isOutOfStock = sizeStock <= 0;
+
                 return (
                   <button
                     key={size}
                     onClick={() => {
                       setSelectedSize(size);
                       setErrorText('');
+                      // Automatically cap quantity if exceeds new size's stock
+                      if (quantity > sizeStock) {
+                        setQuantity(Math.max(1, sizeStock));
+                      }
                     }}
-                    className={`min-w-[48px] h-12 rounded-lg border flex items-center justify-center font-mono text-xs font-bold transition-all cursor-pointer ${
-                      isSizeActive
-                        ? 'border-rose-600 bg-rose-600 text-white shadow-sm ring-1 ring-rose-600'
-                        : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+                    className={`min-w-[70px] h-12 px-2.5 rounded-lg border flex flex-col items-center justify-center font-mono text-xs font-bold transition-all cursor-pointer ${
+                      isOutOfStock
+                        ? 'border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed opacity-60'
+                        : isSizeActive
+                          ? 'border-rose-600 bg-rose-600 text-white shadow-sm ring-1 ring-rose-600'
+                          : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
                     }`}
                   >
-                    {size}
+                    <span>{size}</span>
+                    {isOutOfStock ? (
+                      <span className="text-[9px] font-sans font-normal text-rose-500">Sem estoque</span>
+                    ) : (
+                      <span className="text-[9px] font-sans font-normal text-slate-400">Disponível: {sizeStock}</span>
+                    )}
                   </button>
                 );
               })}
@@ -250,7 +291,8 @@ export const ProductDetails: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleIncrease}
-                  className="w-10 h-10 flex items-center justify-center text-slate-500 hover:text-slate-800 transition cursor-pointer"
+                  disabled={selectedSize !== '' && quantity >= (selectedSizeStock ?? 999)}
+                  className="w-10 h-10 flex items-center justify-center text-slate-500 hover:text-slate-800 disabled:opacity-40 transition cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
                 </button>
@@ -259,11 +301,13 @@ export const ProductDetails: React.FC = () => {
               {/* Action trigger */}
               <button
                 onClick={handleAddToCart}
-                disabled={isAdded}
-                className={`flex-1 h-12 bg-rose-600 text-white hover:bg-rose-700 font-bold rounded-lg text-sm flex items-center justify-center gap-2 shadow-md transition-all active:scale-98 cursor-pointer disabled:bg-green-600 disabled:shadow-none`}
+                disabled={isAdded || isSelectedSizeOutOfStock}
+                className={`flex-1 h-12 ${isSelectedSizeOutOfStock ? 'bg-slate-350 hover:bg-slate-350 cursor-not-allowed' : 'bg-rose-600 hover:bg-rose-700 active:scale-98'} text-white font-bold rounded-lg text-sm flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer disabled:bg-slate-400 disabled:shadow-none`}
               >
                 {isAdded ? (
                   <>✓ Adicionado com Sucesso</>
+                ) : isSelectedSizeOutOfStock ? (
+                  <>Sem estoque</>
                 ) : (
                   <>
                     <ShoppingBag className="w-4 h-4" />

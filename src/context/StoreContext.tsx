@@ -16,7 +16,7 @@ interface StoreContextProps {
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   cart: CartItem[];
-  addToCart: (product: Product, size: string, color?: string, quantity?: number) => void;
+  addToCart: (product: Product, size: string, color?: string, quantity?: number) => boolean | void;
   removeFromCart: (cartItemId: string) => void;
   updateCartQuantity: (cartItemId: string, q: number) => void;
   clearCart: () => void;
@@ -140,9 +140,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     localStorage.setItem('boutique_cart', JSON.stringify(newCart));
   };
 
-  const addToCart = (product: Product, size: string, color?: string, quantity: number = 1) => {
+  const addToCart = (product: Product, size: string, color?: string, quantity: number = 1): boolean => {
+    const stockAvailable = product.tamanhos_estoque?.[size] !== undefined
+      ? product.tamanhos_estoque[size]
+      : (product.stock || 0);
+
     const itemId = `${product.id}-${size}-${color || ''}`;
     const existingIndex = cart.findIndex(item => item.id === itemId);
+    const existingQty = existingIndex > -1 ? cart[existingIndex].quantity : 0;
+
+    if (existingQty + quantity > stockAvailable) {
+      alert(`Estoque insuficiente para este tamanho. Disponível: ${stockAvailable} unidades.`);
+      return false;
+    }
 
     if (existingIndex > -1) {
       const updated = [...cart];
@@ -158,6 +168,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       };
       saveCart([...cart, newItem]);
     }
+    return true;
   };
 
   const removeFromCart = (cartItemId: string) => {
@@ -172,7 +183,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
     const updated = cart.map(item => {
       if (item.id === cartItemId) {
-        return { ...item, quantity: q };
+        const itemStock = item.product.tamanhos_estoque?.[item.selectedSize] !== undefined
+          ? item.product.tamanhos_estoque[item.selectedSize]
+          : (item.product.stock || 0);
+        
+        const validatedQty = Math.min(q, itemStock);
+        return { ...item, quantity: validatedQty };
       }
       return item;
     });
@@ -216,6 +232,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (cart.length === 0) {
       throw new Error("Carrinho vazio");
     }
+
+    // Double check stock on handleCheckout
+    for (const item of cart) {
+      const liveProduct = products.find(p => p.id === item.product.id) || item.product;
+      const stockAvailable = liveProduct.tamanhos_estoque?.[item.selectedSize] !== undefined
+        ? liveProduct.tamanhos_estoque[item.selectedSize]
+        : (liveProduct.stock || 0);
+
+      if (item.quantity > stockAvailable) {
+        throw new Error(`O produto ${liveProduct.name} tamanho ${item.selectedSize} possui apenas ${stockAvailable} unidades disponíveis.`);
+      }
+    }
+
     setCheckoutLoading(true);
     try {
       const subtotal = cart.reduce((acc, item) => {

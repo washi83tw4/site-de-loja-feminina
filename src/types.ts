@@ -20,6 +20,7 @@ export interface Product {
   sizes: string[];
   colors?: string[];
   stock?: number;
+  tamanhos_estoque?: Record<string, number>;
   createdAt?: string;
 }
 

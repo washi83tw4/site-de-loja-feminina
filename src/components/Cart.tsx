@@ -31,7 +31,8 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
     handleCheckout, 
     checkoutLoading,
     user,
-    signIn
+    signIn,
+    products
   } = useStore();
 
   const [step, setStep] = useState<'cart' | 'checkout' | 'success'>('cart');
@@ -145,6 +146,19 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
   // Validate form and submit order
   const onFinalizeOrder = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate each cart item against up-to-date products list to comply with rule 4
+    for (const item of cart) {
+      const liveProduct = products.find(p => p.id === item.product.id) || item.product;
+      const stockAvailable = liveProduct.tamanhos_estoque?.[item.selectedSize] !== undefined
+        ? liveProduct.tamanhos_estoque[item.selectedSize]
+        : (liveProduct.stock || 0);
+
+      if (item.quantity > stockAvailable) {
+        setFormError(`O produto ${liveProduct.name} tamanho ${item.selectedSize} possui apenas ${stockAvailable} unidades disponíveis.`);
+        return;
+      }
+    }
 
     if (!customerName.trim()) {
       setFormError('Por favor, informe seu nome completo.');
@@ -343,7 +357,13 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
                 </div>
               ) : (
                 <div className="space-y-0 flex-1 overflow-y-auto pr-1">
-                  {cart.map((item) => (
+                  {cart.map((item) => {
+                    const liveProduct = products.find(p => p.id === item.product.id) || item.product;
+                    const itemStock = liveProduct.tamanhos_estoque?.[item.selectedSize] !== undefined
+                      ? liveProduct.tamanhos_estoque[item.selectedSize]
+                      : (liveProduct.stock || 0);
+
+                    return (
                     <div key={item.id} className="py-4 flex gap-4 items-start" id={`cart-item-${item.id}`}>
                       {/* Item Image */}
                       <div className="w-20 h-24 bg-slate-50 border border-slate-100 rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
@@ -385,6 +405,9 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
                               Cor: {item.selectedColor}
                             </span>
                           )}
+                          <span className="text-[10px] text-rose-550 font-semibold font-mono ml-auto">
+                            Máximo disponível: {itemStock}
+                          </span>
                         </div>
 
                         {/* Price & quantities toggles */}
@@ -417,7 +440,8 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
                             <span className="w-6 text-center text-xs font-bold font-mono">{item.quantity}</span>
                             <button
                               onClick={() => updateCartQuantity(item.id, item.quantity + 1)}
-                              className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-slate-900 transition cursor-pointer"
+                              disabled={item.quantity >= itemStock}
+                              className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-slate-900 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
                             >
                               <Plus className="w-3 h-3" />
                             </button>
@@ -434,7 +458,7 @@ export const Cart: React.FC<CartProps> = ({ isOpen, onClose }) => {
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
-                  ))}
+                  );})}
                 </div>
               )}
             </div>
